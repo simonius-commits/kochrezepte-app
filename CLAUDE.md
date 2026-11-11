@@ -52,6 +52,8 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
   sind in Vercel hinterlegt (Project Settings → Environment Variables).
 - Domain simonius.de liegt bei **HostEurope** (DNS über GoDaddy-Server). Dort nur ein
   CNAME `rezepte` → `3a63a6f57e1d87ad.vercel-dns-017.com.` — Rest der Domain unberührt.
+- Supabase (Authentication → URL Configuration): Site URL `https://rezepte.simonius.de`,
+  Redirect URLs enthalten zusätzlich `http://localhost:5173`. Login live getestet am 11.11.2026.
 - Keine `vercel.json` nötig: Die App hat keine Unterseiten-URLs, alles läuft über `/`.
 - **Achtung Produkt-Launch:** Vercel Hobby ist nur für nicht-kommerzielle Nutzung. Vor einem
   Verkauf auf Vercel Pro wechseln oder zu Netlify/Cloudflare Pages umziehen (einfach, da
@@ -116,9 +118,6 @@ Getroffene Entscheidungen:
 
 ## Offene Punkte / ungeprüft
 
-- **Supabase für rezepte.simonius.de:** Authentication → URL Configuration: Site URL
-  `https://rezepte.simonius.de`, Redirect URLs zusätzlich `https://rezepte.simonius.de` und
-  `http://localhost:5173`. Login auf der Live-Seite noch nicht getestet.
 
 - **v0.45 Passwort vergessen:** Oberfläche im Browser geprüft; der echte Ablauf (E-Mail →
   Link → neues Passwort) ist noch nicht durchgespielt. Voraussetzung in Supabase:
