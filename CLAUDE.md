@@ -46,10 +46,19 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 
 ## Figma
 
-- Datei: https://www.figma.com/design/ohcJ8ZKOOzS8OhObqlLiGB/Kochrezepte-App-%E2%80%93-Design-System
+- **Aktuelle Datei (bearbeitbar, in „Simon Beckmann's team“):**
+  https://www.figma.com/design/NymEYF5ZmMBEEI4b7VxBXG/Kochrezepte-App-%E2%80%93-Design-System--Copy-
+  (fileKey `NymEYF5ZmMBEEI4b7VxBXG`, Node-IDs identisch zur alten Datei).
+- Alte Datei `ohcJ8ZKOOzS8OhObqlLiGB` liegt im Team „neusta“ (dort nur View-Seat) — NICHT mehr
+  verwenden, Claude kann dort nicht schreiben.
+- **Icons:** Lucide-Icons-Datei https://www.figma.com/design/mWkpMMYYqEwP7jNoq4UCX9/Lucide-Icons--Kochrezepte-App-
+  (fileKey `mWkpMMYYqEwP7jNoq4UCX9`) — passt zu `lucide-react` im Code.
 - Wichtige Seiten: **Screens – User** (Abschnitte pro Bereich, u.a. „Rezept Details“,
   „Card-Optionen“), **Screens – Admin**, Komponenten-Seiten **Recipe Card**, **Entity Cards**,
   **Icon Button** (Komponente mit Icon-Tausch, Icon „More Horizontal“ = „…“), **Icons**.
+- Figma-Connector ist in der Desktop-App verbunden (seit 11.11.2026). Variablen auslesen geht
+  über die Frames (in der aktuellen Datei) „Farb-Tokens: Light Mode“ (Node `156:4`) und „… Dark Mode“ (Node `156:66`)
+  auf der Seite Foundations — ohne konkreten Frame meldet das Tool „nothing selected“.
 - Es gibt noch kein Icon für „externer Link“ — auf der Detailseite wird dafür das Zeichen ↗ benutzt.
 
 ## Git & GitHub
@@ -70,6 +79,7 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 | 0.42 | Bugfix: Absturz beim Speichern importierter Rezepte (`ing.notiz.trim`) |
 | 0.43 | Rezept-Quelle: Feld „Quelle (Link)“ in Einordnung, Link „Quelle: domain ↗“ auf der Detailseite; beim Link-Import wird Kochbuch = erkanntes Buch, sonst die Domain |
 | 0.44 | „…“-Menü unten rechts in allen Cards (Rezept: Bearbeiten/Duplizieren/Löschen; Kochbuch/Sammlung/Kategorie/Tag: Umbenennen/Löschen; Zutaten/Hilfsmittel unverändert, nur verschoben) |
+| 0.45 | Passwort vergessen: Link im Login → E-Mail mit Link (`resetPasswordForEmail`, redirectTo = aktuelle App-Adresse) → Screen „Neues Passwort festlegen“ (`NewPasswordScreen.jsx`), danach direkt eingeloggt. Abgelaufener Link → Fehlermeldung im Login. Figma: Screens – User → Sonstiges |
 
 Getroffene Entscheidungen:
 - Kochbuch/Sammlung/Kategorie/Tag dürfen gelöscht werden, auch wenn Rezepte zugeordnet sind —
@@ -81,12 +91,16 @@ Getroffene Entscheidungen:
 
 ## Offene Punkte / ungeprüft
 
-- **Nicht im Browser getestet:** v0.43 und v0.44 — Claude konnte sich nicht in die App einloggen.
-  Vom Nutzer noch nicht bestätigt, ob Quelle und „…“-Menüs funktionieren.
-- **Spalte `recipes.quelle`** steht in `schema.sql`, ist aber evtl. in der echten Datenbank
-  nie angelegt worden. Falls beim Speichern „column quelle … not found“ kommt:
-  `alter table recipes add column if not exists quelle text;` im Supabase SQL Editor.
-- **`feedback_items`:** `schema.sql` verweist auf `migration-user-feedback.sql`, die Datei
-  existiert nicht. Unklar, ob die Tabelle in Supabase angelegt ist.
+- **v0.45 Passwort vergessen:** Oberfläche im Browser geprüft; der echte Ablauf (E-Mail →
+  Link → neues Passwort) ist noch nicht durchgespielt. Voraussetzung in Supabase:
+  Authentication → URL Configuration → Redirect URLs muss die App-Adresse enthalten
+  (`http://localhost:5173`, ggf. `http://localhost:5174`, später die echte Domain).
+- **Geprüft am 11.11.2026 (im Browser, eingeloggt):** v0.43 Quelle-Link auf der Detailseite
+  funktioniert, Spalte `recipes.quelle` existiert. v0.44 „…“-Menüs öffnen sich in allen Cards
+  mit den richtigen Einträgen (Aktionen selbst wie Löschen/Umbenennen nicht ausgeführt).
+  Tabelle `feedback_items` existiert in Supabase (Verweis auf die fehlende
+  `migration-user-feedback.sql` in `schema.sql` ist trotzdem noch aufzuräumen).
+- **Login-Probleme auf einem Rechner?** Zuerst `.env` prüfen: Auf dem zweiten Rechner war sie
+  eine unveränderte Kopie von `.env.example` (Platzhalter) → Fehler „Load failed“.
 - Ideen für später: Import könnte Zutaten-Notizen („fein gehackt“) mit übernehmen;
   echtes „externer Link“-Icon im Design System.

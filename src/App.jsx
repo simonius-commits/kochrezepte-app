@@ -3,6 +3,7 @@ import { useSession } from "./hooks/useSession.js";
 import { useProfile } from "./hooks/useProfile.js";
 import { supabase, isSupabaseConfigured } from "./lib/supabaseClient.js";
 import AuthScreen from "./pages/AuthScreen.jsx";
+import NewPasswordScreen from "./pages/NewPasswordScreen.jsx";
 import RecipesOverview from "./pages/RecipesOverview.jsx";
 import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 import CollectionsPage from "./pages/CollectionsPage.jsx";
@@ -23,7 +24,7 @@ const VIEW_TITLES = {
 };
 
 export default function App() {
-  const { session, loading } = useSession();
+  const { session, loading, passwordRecovery, finishPasswordRecovery } = useSession();
   const { profile } = useProfile(session);
   const isAdmin = Boolean(profile?.is_admin);
   const [activeView, setActiveView] = useState("rezepte");
@@ -36,6 +37,10 @@ export default function App() {
     }
     if (!session) {
       return <AuthScreen />;
+    }
+    // Über den "Passwort zurücksetzen"-Link gekommen → erst neues Passwort festlegen.
+    if (passwordRecovery) {
+      return <NewPasswordScreen onDone={finishPasswordRecovery} />;
     }
   }
 

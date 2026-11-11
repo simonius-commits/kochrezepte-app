@@ -11,6 +11,20 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // wir createClient() nur auf, wenn beide Werte wirklich gesetzt sind.
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
+// Passwort-Zurücksetzen: Der Link aus der E-Mail öffnet die App mit Infos im
+// "#…"-Teil der Adresse (z.B. "#access_token=…&type=recovery"). Supabase liest
+// diesen Teil beim Start aus und entfernt ihn danach aus der Adresszeile —
+// deshalb merken wir uns HIER, noch bevor der Client erstellt wird, ob die App
+// über so einen Link geöffnet wurde.
+const authHash = new URLSearchParams(window.location.hash.slice(1));
+export const openedViaRecoveryLink = authHash.get("type") === "recovery";
+// Abgelaufener oder schon benutzter Link → Supabase hängt eine Fehlermeldung an.
+export const authLinkError = authHash.get("error_code")
+  ? authHash.get("error_code") === "otp_expired"
+    ? "Der Link ist abgelaufen oder wurde schon benutzt. Bitte fordere einen neuen an."
+    : authHash.get("error_description") || "Der Link ist ungültig."
+  : null;
+
 if (!isSupabaseConfigured) {
   console.warn(
     "Supabase ist noch nicht eingerichtet (.env fehlt) — die App läuft im Demo-Modus mit Beispiel-Rezepten."
