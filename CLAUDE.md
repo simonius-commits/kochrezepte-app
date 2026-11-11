@@ -44,6 +44,20 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 - Die Regel „Projekt zippen und über present_files bereitstellen“ aus der Skill gilt in der
   Desktop-App nicht — Claude bearbeitet die Dateien dort direkt im Projektordner.
 
+## Hosting (online seit 11.11.2026)
+
+- Live unter **https://rezepte.simonius.de** (zusätzlich `kochrezepte-app.vercel.app`).
+- Hosting: **Vercel**, Tarif Hobby, per GitHub mit `main` verbunden → jeder `git push`
+  veröffentlicht automatisch. Umgebungsvariablen `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`
+  sind in Vercel hinterlegt (Project Settings → Environment Variables).
+- Domain simonius.de liegt bei **HostEurope** (DNS über GoDaddy-Server). Dort nur ein
+  CNAME `rezepte` → `3a63a6f57e1d87ad.vercel-dns-017.com.` — Rest der Domain unberührt.
+- Keine `vercel.json` nötig: Die App hat keine Unterseiten-URLs, alles läuft über `/`.
+- **Achtung Produkt-Launch:** Vercel Hobby ist nur für nicht-kommerzielle Nutzung. Vor einem
+  Verkauf auf Vercel Pro wechseln oder zu Netlify/Cloudflare Pages umziehen (einfach, da
+  statische Seite). Außerdem dann: Supabase Pro (Free pausiert bei Inaktivität), EU-Region,
+  Datenschutzerklärung/AGB/AV-Verträge.
+
 ## Figma
 
 - **Aktuelle Datei (bearbeitbar, in „Simon Beckmann's team“):**
@@ -101,6 +115,10 @@ Getroffene Entscheidungen:
 - Auf der Detailseite stehen „aus „Kochbuch““ und „Quelle: domain ↗“ beide, auch wenn gleich.
 
 ## Offene Punkte / ungeprüft
+
+- **Supabase für rezepte.simonius.de:** Authentication → URL Configuration: Site URL
+  `https://rezepte.simonius.de`, Redirect URLs zusätzlich `https://rezepte.simonius.de` und
+  `http://localhost:5173`. Login auf der Live-Seite noch nicht getestet.
 
 - **v0.45 Passwort vergessen:** Oberfläche im Browser geprüft; der echte Ablauf (E-Mail →
   Link → neues Passwort) ist noch nicht durchgespielt. Voraussetzung in Supabase:
