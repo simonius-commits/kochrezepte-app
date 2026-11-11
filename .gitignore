@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+.DS_Store
+# Rechner-spezifisch, gehört nicht ins Repository
+.claude/settings.local.json
+supabase/.temp
