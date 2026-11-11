@@ -1535,3 +1535,104 @@ body {
   font-weight: 600;
   color: var(--color-text-primary);
 }
+
+/* --- Checkbox (Figma: Seite „Input“ → Checkbox) --- */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  cursor: pointer;
+  min-width: 0;
+}
+.checkbox-row-disabled {
+  cursor: default;
+}
+/* Echte Checkbox unsichtbar, aber für Tastatur/Screenreader vorhanden */
+.checkbox-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+.checkbox {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border-strong);
+  background: var(--color-bg-primary);
+  color: var(--color-accent-on-accent);
+}
+.checkbox-checked {
+  background: var(--color-accent-default);
+  border-color: var(--color-accent-default);
+}
+.checkbox-input:focus-visible + .checkbox {
+  outline: 2px solid var(--color-accent-default);
+  outline-offset: 2px;
+}
+
+/* --- Einkaufsliste: Auswahl-Modal --- */
+.shopping-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.shopping-select-row {
+  font-size: 14px;
+  gap: var(--spacing-md);
+}
+.shopping-select-menge {
+  width: 70px;
+  flex-shrink: 0;
+}
+.shopping-select-name {
+  color: var(--color-text-secondary);
+}
+
+/* --- Einkaufsliste: Seite „Einkaufen“ --- */
+.page-intro {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 0 0 var(--spacing-lg) 0;
+}
+.shopping-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: 0 0 var(--spacing-md) 0;
+}
+.shopping-group-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap; /* schmale Fenster: Portionen-Info rutscht unter den Titel statt zu überlappen */
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font-family: var(--font-family);
+  text-align: left;
+}
+.shopping-group-meta {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.shopping-item {
+  flex: 1;
+}
+.shopping-item-done {
+  text-decoration: line-through;
+  color: var(--color-text-tertiary);
+}

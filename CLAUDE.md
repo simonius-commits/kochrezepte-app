@@ -59,6 +59,10 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 - Figma-Connector ist in der Desktop-App verbunden (seit 11.11.2026). Variablen auslesen geht
   über die Frames (in der aktuellen Datei) „Farb-Tokens: Light Mode“ (Node `156:4`) und „… Dark Mode“ (Node `156:66`)
   auf der Seite Foundations — ohne konkreten Frame meldet das Tool „nothing selected“.
+- Figma-Plan ist **Starter**: keine weiteren Seiten möglich (Limit erreicht). Neue Komponenten
+  auf passende bestehende Seiten legen — z.B. **Checkbox** liegt auf der Seite „Input“.
+- Icons auf der Seite „Icons“ sind aus Lucide nachgebaut (20×20, Strich 2, Farbe text/tertiary),
+  u.a. Chevron Down/Up, More Horizontal, Check, Trash 2.
 - Es gibt noch kein Icon für „externer Link“ — auf der Detailseite wird dafür das Zeichen ↗ benutzt.
 
 ## Git & GitHub
@@ -80,8 +84,13 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 | 0.43 | Rezept-Quelle: Feld „Quelle (Link)“ in Einordnung, Link „Quelle: domain ↗“ auf der Detailseite; beim Link-Import wird Kochbuch = erkanntes Buch, sonst die Domain |
 | 0.44 | „…“-Menü unten rechts in allen Cards (Rezept: Bearbeiten/Duplizieren/Löschen; Kochbuch/Sammlung/Kategorie/Tag: Umbenennen/Löschen; Zutaten/Hilfsmittel unverändert, nur verschoben) |
 | 0.45 | Passwort vergessen: Link im Login → E-Mail mit Link (`resetPasswordForEmail`, redirectTo = aktuelle App-Adresse) → Screen „Neues Passwort festlegen“ (`NewPasswordScreen.jsx`), danach direkt eingeloggt. Abgelaufener Link → Fehlermeldung im Login. Figma: Screens – User → Sonstiges |
+| 0.46 | Einkaufsliste: Button „Für das Rezept einkaufen“ (Detailseite) → Modal mit Checkboxen (alle vorausgewählt) → Seite „Einkaufen“ (Akkordeon pro Rezept, abhaken, Rezept entfernen). Rezept schon auf der Liste → Rückfrage Ersetzen / Mengen addieren. Tabellen `shopping_list_recipes` + `shopping_list_items` (`supabase/migration-einkaufsliste.sql`, in Supabase ausgeführt). Figma: Screens – User → Einkaufsliste |
 
 Getroffene Entscheidungen:
+- Einkaufsliste: gleiche Zutat + gleiche Einheit innerhalb eines Rezepts wird zu einer Zeile
+  zusammengefasst; Addieren nur bei gleicher Einheit (keine Umrechnung). Zutaten-Notizen
+  („gewürfelt“) werden nicht auf die Liste übernommen. Sortierung beim Laden: offene zuerst,
+  dann alphabetisch. Nach dem Hinzufügen schließt das Modal ohne Erfolgsmeldung (nicht im Design).
 - Kochbuch/Sammlung/Kategorie/Tag dürfen gelöscht werden, auch wenn Rezepte zugeordnet sind —
   nach Sicherheitsabfrage, die Rezepte bleiben, nur die Zuordnung fällt weg. (Rezepte →
   Kochbuch/Kategorie haben kein „on delete set null“, deshalb löst `deleteEntity` die

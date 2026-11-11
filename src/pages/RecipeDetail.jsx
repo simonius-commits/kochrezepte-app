@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 import Tag from "../components/Tag.jsx";
 import CookMode from "../components/CookMode.jsx";
+import ShoppingListModal from "../components/ShoppingListModal.jsx";
 import { getDomain, toAbsoluteUrl } from "../lib/getDomain.js";
 
 function round2(n) {
@@ -22,6 +23,7 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showCookMode, setShowCookMode] = useState(false);
+  const [showShoppingModal, setShowShoppingModal] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
           .single(),
         supabase
           .from("recipe_ingredients")
-          .select("id, menge, einheit, notiz, ingredients(name)")
+          .select("id, ingredient_id, menge, einheit, notiz, ingredients(name)")
           .eq("recipe_id", recipeId),
         supabase
           .from("recipe_steps")
@@ -97,7 +99,7 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
       // Neue, jetzt gültige Basiswerte nachladen (Zutaten sind jetzt der neue Ausgangspunkt).
       const { data: refreshed } = await supabase
         .from("recipe_ingredients")
-        .select("id, menge, einheit, notiz, ingredients(name)")
+        .select("id, ingredient_id, menge, einheit, notiz, ingredients(name)")
         .eq("recipe_id", recipeId);
       setIngredients(refreshed || []);
       setRecipe((r) => ({ ...r, portionen_standard: portionen }));
@@ -220,6 +222,16 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
           {isDirty && isDemo && (
             <span className="field-hint">Demo-Rezept — Änderungen werden nicht gespeichert.</span>
           )}
+          {!isDemo && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowShoppingModal(true)}
+              disabled={ingredients.length === 0}
+            >
+              Für das Rezept einkaufen
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-primary cook-mode-start-button"
@@ -229,6 +241,23 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
           </button>
         </div>
       </div>
+
+      {showShoppingModal && (
+        <ShoppingListModal
+          recipe={recipe}
+          portionen={portionen}
+          ingredients={ingredients.map((ing) => ({
+            id: ing.id,
+            ingredient_id: ing.ingredient_id,
+            name: ing.ingredients?.name || ing.name,
+            notiz: ing.notiz,
+            einheit: ing.einheit,
+            menge: ing.menge != null ? round2(ing.menge * factor) : null,
+          }))}
+          onClose={() => setShowShoppingModal(false)}
+          onAdded={() => setShowShoppingModal(false)}
+        />
+      )}
 
       {showCookMode && (
         <CookMode

@@ -2,6 +2,7 @@ import { APP_VERSION } from "../version.js";
 
 const TOP_ITEMS = [
   { key: "rezepte", label: "Rezepte" },
+  { key: "einkaufen", label: "Einkaufen" },
   { key: "sammlungen", label: "Sammlungen" },
   { key: "kochbuecher", label: "Kochbücher" },
   { key: "kategorien", label: "Kategorien" },

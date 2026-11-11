@@ -35,6 +35,14 @@ export default function MergeIngredientModal({ ingredient, onClose, onMerged }) 
         .eq("ingredient_id", ingredient.id);
       if (updateError) throw updateError;
 
+      // Auch Einträge auf Einkaufslisten umhängen. Falls die Einkaufslisten-Tabelle noch nicht
+      // angelegt ist (migration-einkaufsliste.sql nicht ausgeführt), einfach überspringen.
+      const { error: shoppingError } = await supabase
+        .from("shopping_list_items")
+        .update({ ingredient_id: target.id })
+        .eq("ingredient_id", ingredient.id);
+      if (shoppingError && !["42P01", "PGRST205"].includes(shoppingError.code)) throw shoppingError;
+
       // Alte Zutat ist jetzt garantiert unbenutzt und kann gelöscht werden.
       const { error: deleteError } = await supabase.from("ingredients").delete().eq("id", ingredient.id);
       if (deleteError) throw deleteError;

@@ -16,6 +16,7 @@ import IngredientCategoriesPage from "./pages/IngredientCategoriesPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
 import ImpressumPage from "./pages/ImpressumPage.jsx";
 import FeedbackPage from "./pages/FeedbackPage.jsx";
+import ShoppingListPage from "./pages/ShoppingListPage.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 
 const VIEW_TITLES = {
@@ -54,6 +55,8 @@ export default function App() {
     switch (activeView) {
       case "rezepte":
         return <RecipesOverview />;
+      case "einkaufen":
+        return <ShoppingListPage />;
       case "sammlungen":
         return <CollectionsPage />;
       case "kochbuecher":
