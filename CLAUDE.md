@@ -59,7 +59,8 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 - Figma-Connector ist in der Desktop-App verbunden (seit 11.11.2026). Variablen auslesen geht
   über die Frames (in der aktuellen Datei) „Farb-Tokens: Light Mode“ (Node `156:4`) und „… Dark Mode“ (Node `156:66`)
   auf der Seite Foundations — ohne konkreten Frame meldet das Tool „nothing selected“.
-- Figma-Plan ist **Starter**: keine weiteren Seiten möglich (Limit erreicht). Neue Komponenten
+- Figma-Team ist seit 11.11.2026 auf **Professional** (vorher Starter: MCP-Kontingent war schnell
+  aufgebraucht, max. 3 Seiten). Neue Komponenten
   auf passende bestehende Seiten legen — z.B. **Checkbox** liegt auf der Seite „Input“.
 - Icons auf der Seite „Icons“ sind aus Lucide nachgebaut (20×20, Strich 2, Farbe text/tertiary),
   u.a. Chevron Down/Up, More Horizontal, Check, Trash 2.
@@ -85,6 +86,7 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 | 0.44 | „…“-Menü unten rechts in allen Cards (Rezept: Bearbeiten/Duplizieren/Löschen; Kochbuch/Sammlung/Kategorie/Tag: Umbenennen/Löschen; Zutaten/Hilfsmittel unverändert, nur verschoben) |
 | 0.45 | Passwort vergessen: Link im Login → E-Mail mit Link (`resetPasswordForEmail`, redirectTo = aktuelle App-Adresse) → Screen „Neues Passwort festlegen“ (`NewPasswordScreen.jsx`), danach direkt eingeloggt. Abgelaufener Link → Fehlermeldung im Login. Figma: Screens – User → Sonstiges |
 | 0.46 | Einkaufsliste: Button „Für das Rezept einkaufen“ (Detailseite) → Modal mit Checkboxen (alle vorausgewählt) → Seite „Einkaufen“ (Akkordeon pro Rezept, abhaken, Rezept entfernen). Rezept schon auf der Liste → Rückfrage Ersetzen / Mengen addieren. Tabellen `shopping_list_recipes` + `shopping_list_items` (`supabase/migration-einkaufsliste.sql`, in Supabase ausgeführt). Figma: Screens – User → Einkaufsliste |
+| 0.47 | Einkaufen: Tabs „Nach Rezepten | Alle Zutaten“ (Tags wie im Import-Modal). „Alle Zutaten“: eine Zeile pro Zutat über alle Rezepte, Mengen pro Einheit summiert („150 ml + 10 EL“), Unterzeile mit Rezepten; Umschalter „Nach Kategorie | Alphabetisch“ (ViewSwitcher mit `options`). Abhaken gilt für alle Rezepte. |
 
 Getroffene Entscheidungen:
 - Einkaufsliste: gleiche Zutat + gleiche Einheit innerhalb eines Rezepts wird zu einer Zeile

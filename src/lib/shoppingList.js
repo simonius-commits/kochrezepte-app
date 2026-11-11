@@ -109,7 +109,7 @@ export async function loadShoppingList() {
   const { data, error } = await supabase
     .from("shopping_list_recipes")
     .select(
-      "id, portionen, created_at, recipes(id, titel), shopping_list_items(id, menge, einheit, erledigt, created_at, ingredients(name))"
+      "id, portionen, created_at, recipes(id, titel), shopping_list_items(id, ingredient_id, menge, einheit, erledigt, created_at, ingredients(name, ingredient_categories(name)))"
     )
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -129,6 +129,12 @@ export async function loadShoppingList() {
 /** Zutat im Laden abhaken (oder Haken wieder entfernen). */
 export async function setShoppingItemDone(itemId, erledigt) {
   const { error } = await supabase.from("shopping_list_items").update({ erledigt }).eq("id", itemId);
+  if (error) throw error;
+}
+
+/** Mehrere Zutaten auf einmal abhaken — z.B. im Tab „Alle Zutaten“ dieselbe Zutat in allen Rezepten. */
+export async function setShoppingItemsDone(itemIds, erledigt) {
+  const { error } = await supabase.from("shopping_list_items").update({ erledigt }).in("id", itemIds);
   if (error) throw error;
 }
 

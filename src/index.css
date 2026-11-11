@@ -1636,3 +1636,24 @@ body {
   text-decoration: line-through;
   color: var(--color-text-tertiary);
 }
+
+/* --- Einkaufsliste: Tabs + Tab „Alle Zutaten“ --- */
+.shopping-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+.shopping-all-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.shopping-all-recipes {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
