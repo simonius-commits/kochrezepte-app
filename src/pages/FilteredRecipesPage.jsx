@@ -4,6 +4,7 @@ import RecipeCard from "../components/RecipeCard.jsx";
 import { duplicateRecipe, deleteRecipe } from "../lib/recipeActions.js";
 import RecipeDetail from "./RecipeDetail.jsx";
 import NewRecipeForm from "./NewRecipeForm.jsx";
+import { bestaetigen } from "../lib/bestaetigen.js";
 
 function mapRecipe(r) {
   return {
@@ -104,7 +105,7 @@ export default function FilteredRecipesPage({ filterType, filterId, filterName, 
   }
 
   async function handleDelete(recipe) {
-    if (!window.confirm(`„${recipe.titel}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+    if (!(await bestaetigen({ titel: "Rezept löschen?", text: `„${recipe.titel}“ wird gelöscht. Das kann nicht rückgängig gemacht werden.` }))) return;
     try {
       await deleteRecipe(recipe.id);
     } catch (err) {

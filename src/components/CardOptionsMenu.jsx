@@ -1,15 +1,36 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
 // "…"-Button unten rechts in jeder Card (Figma: Icon Button mit Icon "More Horizontal") plus
 // das kleine Menü, das darunter aufklappt (Figma: Bereich "Card-Optionen").
 //
 // items: [{ label, onClick, danger?, disabled?, title? }]
-// Das Menü richtet sich an der Card aus (rechtsbündig direkt darunter) — dafür muss die Card
-// selbst "position: relative" haben, was .entity-card und .recipe-card in index.css tun.
+// Der Button sitzt in jeder Card an derselben Stelle (16 px vom rechten und unteren Rand), das
+// Menü klappt direkt darunter auf, linke Kante bündig am Button. Dafür muss die Card selbst
+// "position: relative" haben, was .entity-card und .recipe-card in index.css tun.
+/**
+ * Menü nach dem Öffnen messen: Ragt es rechts aus dem Fenster (z.B. Card ganz am rechten
+ * Rand), klappt es ausnahmsweise nach links auf (rechte Kante bündig am Button).
+ * Gibt die passende CSS-Klasse zurück. Wird auch von IngredientCard benutzt.
+ */
+export function useMenuNachLinks(menuRef, open) {
+  const [nachLinks, setNachLinks] = useState(false);
+  useLayoutEffect(() => {
+    if (!open) {
+      setNachLinks(false);
+      return;
+    }
+    const rect = menuRef.current?.getBoundingClientRect();
+    if (rect && rect.right > window.innerWidth - 8) setNachLinks(true);
+  }, [open, menuRef]);
+  return nachLinks ? " entity-card-menu-nach-links" : "";
+}
+
 export default function CardOptionsMenu({ items }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
+  const menuRef = useRef(null);
+  const menuKlasse = useMenuNachLinks(menuRef, open);
 
   // Klick irgendwo außerhalb (auch auf eine andere Card) schließt das Menü wieder.
   useEffect(() => {
@@ -38,7 +59,7 @@ export default function CardOptionsMenu({ items }) {
       </button>
 
       {open && (
-        <div className="entity-card-menu" onClick={(e) => e.stopPropagation()}>
+        <div ref={menuRef} className={`entity-card-menu${menuKlasse}`} onClick={(e) => e.stopPropagation()}>
           {items.map((item) => (
             <button
               key={item.label}

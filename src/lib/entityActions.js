@@ -29,9 +29,13 @@ export async function deleteEntity(table, id) {
   if (error) throw error;
 }
 
-// Text für die Sicherheitsabfrage — erklärt, dass die Rezepte nicht mitgelöscht werden.
+// Text für den Lösch-Dialog (bestaetigen) bei Kochbuch/Sammlung/Kategorie/Tag —
+// erklärt, dass die Rezepte nicht mitgelöscht werden.
 export function deleteConfirmText(name, count) {
-  if (!count) return `„${name}" wirklich löschen?`;
-  const zugeordnet = count === 1 ? "1 Rezept ist" : `${count} Rezepte sind`;
-  return `„${name}" wirklich löschen?\n\n${zugeordnet} zugeordnet. Die Rezepte bleiben erhalten, nur die Zuordnung wird entfernt.`;
+  if (!count) return `„${name}“ wird gelöscht.`;
+  const zugeordnet =
+    count === 1
+      ? "1 Rezept ist zugeordnet – es bleibt erhalten"
+      : `${count} Rezepte sind zugeordnet – sie bleiben erhalten`;
+  return `„${name}“ wird gelöscht. ${zugeordnet}, nur die Zuordnung wird entfernt.`;
 }

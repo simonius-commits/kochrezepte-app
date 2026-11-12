@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CornerDownRight } from "lucide-react";
-import CardOptionsMenu from "./CardOptionsMenu.jsx";
+import CardOptionsMenu, { useMenuNachLinks } from "./CardOptionsMenu.jsx";
 
 // categories: [{id, name}] — für das Kategorie-Zuordnen-Dropdown hinter dem Pfeil-Icon.
 // onAssignCategory(ingredient, categoryId | null) — categoryId ist null bei "Keine Kategorie".
@@ -14,6 +14,8 @@ export default function IngredientCard({
   onAssignCategory,
 }) {
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const kategorieMenuRef = useRef(null);
+  const kategorieMenuKlasse = useMenuNachLinks(kategorieMenuRef, categoryMenuOpen);
   const [renaming, setRenaming] = useState(false);
   const [nameValue, setNameValue] = useState(ingredient.name);
   const inputRef = useRef(null);
@@ -79,43 +81,45 @@ export default function IngredientCard({
         )}
       </div>
 
-      {categoryMenuOpen && (
-        <div className="entity-card-menu" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className="entity-card-menu-item entity-card-menu-item-muted"
-            onClick={() => handleAssignCategory(null)}
-          >
-            Keine Kategorie
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              className="entity-card-menu-item"
-              onClick={() => handleAssignCategory(cat.id)}
-            >
-              {cat.name}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="entity-card-footer">
         <p className="entity-card-meta">{ingredient.count} Rezepte</p>
         <div className="entity-card-icon-group">
-          <button
-            type="button"
-            className="entity-card-icon-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setCategoryMenuOpen((open) => !open);
-            }}
-            aria-label="Kategorie zuordnen"
-            title="Kategorie zuordnen"
-          >
-            <CornerDownRight size={16} />
-          </button>
+          {/* Anker: das Kategorie-Menü klappt direkt unter diesem Button auf (linksbündig) */}
+          <span className="card-menu-anchor">
+            <button
+              type="button"
+              className="entity-card-icon-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCategoryMenuOpen((open) => !open);
+              }}
+              aria-label="Kategorie zuordnen"
+              title="Kategorie zuordnen"
+            >
+              <CornerDownRight size={16} />
+            </button>
+            {categoryMenuOpen && (
+              <div ref={kategorieMenuRef} className={`entity-card-menu${kategorieMenuKlasse}`} onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="entity-card-menu-item entity-card-menu-item-muted"
+                  onClick={() => handleAssignCategory(null)}
+                >
+                  Keine Kategorie
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    className="entity-card-menu-item"
+                    onClick={() => handleAssignCategory(cat.id)}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </span>
           <CardOptionsMenu
             items={[
               { label: "Umbenennen", onClick: () => setRenaming(true) },

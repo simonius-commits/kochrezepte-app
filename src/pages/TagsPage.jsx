@@ -7,6 +7,7 @@ import ViewSwitcher from "../components/ViewSwitcher.jsx";
 import SimpleList from "../components/SimpleList.jsx";
 import SimpleTable from "../components/SimpleTable.jsx";
 import FilteredRecipesPage from "./FilteredRecipesPage.jsx";
+import { bestaetigen } from "../lib/bestaetigen.js";
 
 export default function TagsPage() {
   const [tags, setTags] = useState([]);
@@ -48,7 +49,7 @@ export default function TagsPage() {
   }
 
   async function handleDelete(item) {
-    if (!window.confirm(deleteConfirmText(item.name, item.count))) return;
+    if (!(await bestaetigen({ titel: "Tag löschen?", text: deleteConfirmText(item.name, item.count) }))) return;
     try {
       await deleteEntity("tags", item.id);
     } catch (err) {

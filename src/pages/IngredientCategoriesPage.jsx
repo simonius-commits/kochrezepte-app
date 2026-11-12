@@ -5,6 +5,7 @@ import CreateEntityButton from "../components/CreateEntityButton.jsx";
 import ViewSwitcher from "../components/ViewSwitcher.jsx";
 import SimpleList from "../components/SimpleList.jsx";
 import SimpleTable from "../components/SimpleTable.jsx";
+import { bestaetigen } from "../lib/bestaetigen.js";
 
 export default function IngredientCategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -55,7 +56,7 @@ export default function IngredientCategoriesPage() {
 
   async function handleDelete(category) {
     if (category.count > 0) return; // Button ist in diesem Fall ohnehin deaktiviert
-    if (!window.confirm(`"${category.name}" wirklich löschen?`)) return;
+    if (!(await bestaetigen({ titel: "Zutaten-Kategorie löschen?", text: `„${category.name}“ wird gelöscht.` }))) return;
     const { error } = await supabase.from("ingredient_categories").delete().eq("id", category.id);
     if (error) {
       alert("Löschen fehlgeschlagen: " + error.message);

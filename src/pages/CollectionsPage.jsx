@@ -7,6 +7,7 @@ import ViewSwitcher from "../components/ViewSwitcher.jsx";
 import SimpleList from "../components/SimpleList.jsx";
 import SimpleTable from "../components/SimpleTable.jsx";
 import FilteredRecipesPage from "./FilteredRecipesPage.jsx";
+import { bestaetigen } from "../lib/bestaetigen.js";
 
 export default function CollectionsPage() {
   const [collections, setCollections] = useState([]);
@@ -51,7 +52,7 @@ export default function CollectionsPage() {
   }
 
   async function handleDelete(item) {
-    if (!window.confirm(deleteConfirmText(item.name, item.count))) return;
+    if (!(await bestaetigen({ titel: "Sammlung löschen?", text: deleteConfirmText(item.name, item.count) }))) return;
     try {
       await deleteEntity("collections", item.id);
     } catch (err) {

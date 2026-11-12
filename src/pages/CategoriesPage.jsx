@@ -7,6 +7,7 @@ import ViewSwitcher from "../components/ViewSwitcher.jsx";
 import SimpleList from "../components/SimpleList.jsx";
 import SimpleTable from "../components/SimpleTable.jsx";
 import FilteredRecipesPage from "./FilteredRecipesPage.jsx";
+import { bestaetigen } from "../lib/bestaetigen.js";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -52,7 +53,7 @@ export default function CategoriesPage() {
   }
 
   async function handleDelete(item) {
-    if (!window.confirm(deleteConfirmText(item.name, item.count))) return;
+    if (!(await bestaetigen({ titel: "Kategorie löschen?", text: deleteConfirmText(item.name, item.count) }))) return;
     try {
       await deleteEntity("categories", item.id);
     } catch (err) {

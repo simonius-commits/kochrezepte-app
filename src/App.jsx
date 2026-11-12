@@ -19,6 +19,7 @@ import FeedbackPage from "./pages/FeedbackPage.jsx";
 import ShoppingListPage from "./pages/ShoppingListPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import Sidebar from "./components/Sidebar.jsx";
+import ConfirmDialogHost from "./components/ConfirmDialogHost.jsx";
 
 const VIEW_TITLES = {
   benutzerprofil: "Benutzerprofil",
@@ -100,6 +101,7 @@ export default function App() {
         isAdmin={isAdmin}
       />
       <div className="app-shell-content">{renderContent()}</div>
+      <ConfirmDialogHost />
     </div>
   );
 }

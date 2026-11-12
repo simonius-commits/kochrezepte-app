@@ -1138,16 +1138,10 @@ body {
   gap: var(--spacing-sm);
 }
 
-/* Kategorie-Card (zentrierter Inhalt): Button frei in der Ecke unten rechts */
+/* Kategorie-Card (zentrierter Inhalt): Wrapper ohne eigene Position — der Button sitzt wie
+   in allen Cards unten rechts (siehe .card-options) */
 .entity-card-corner {
-  position: absolute;
-  right: var(--spacing-md);
-  bottom: var(--spacing-md);
-}
-.entity-card-corner .entity-card-menu {
-  /* Ecke liegt um den Innenabstand eingerückt — Menü trotzdem bündig unter der Card */
-  top: calc(100% + var(--spacing-md) + 4px);
-  right: calc(-1 * var(--spacing-md));
+  display: contents;
 }
 
 /* Tag-Card (einzeilig): Anzahl + Button rechts zusammen (Figma: card-end) */
@@ -1157,9 +1151,20 @@ body {
   gap: var(--spacing-sm);
 }
 
-/* Hält Button + Menü zusammen, ohne selbst Platz im Layout einzunehmen */
+/* „…“-Button: in JEDER Card an exakt derselben Stelle — 16 px vom rechten und unteren Rand.
+   Das Menü klappt direkt darunter auf (linke Kante bündig am Button, siehe .entity-card-menu). */
 .card-options {
-  display: contents;
+  position: absolute;
+  right: var(--spacing-md);
+  bottom: var(--spacing-md);
+  display: block;
+}
+/* Platz für den Button freihalten, damit Tags / „12 Rezepte“ nicht darunter laufen */
+.recipe-card-footer,
+.entity-card-footer,
+.entity-card-end {
+  padding-right: 36px;
+  min-height: 28px;
 }
 
 .entity-card-cover {
@@ -1223,7 +1228,7 @@ body {
 .entity-card-menu {
   position: absolute;
   top: calc(100% + 4px);
-  right: 0;
+  left: 0; /* linke Kante bündig am „…“-Button */
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
@@ -1950,4 +1955,34 @@ body {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* Anker für ein Menü an einem einzelnen Button (z.B. „Kategorie zuordnen“ in der Zutaten-Card) */
+.card-menu-anchor {
+  position: relative;
+  display: inline-flex;
+}
+/* Kein Platz rechts (Card am Fensterrand): Menü klappt nach links auf, rechte Kante am Button */
+.entity-card-menu.entity-card-menu-nach-links {
+  left: auto;
+  right: 0;
+}
+
+/* --- Button „Danger“ (Figma: Button Style=Danger), z.B. „Löschen“ im Lösch-Dialog --- */
+.btn-danger {
+  background: var(--color-feedback-error);
+  color: var(--color-accent-on-accent);
+}
+.btn-danger:hover {
+  filter: brightness(0.92);
+}
+.btn-danger:disabled {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+  filter: none;
+}
+/* Lösch-Dialog: Zeilenumbrüche im Text behalten */
+.bestaetigen-text {
+  white-space: pre-line;
 }

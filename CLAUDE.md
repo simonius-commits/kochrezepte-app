@@ -32,7 +32,7 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 
 ## Konventionen im Code
 
-- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.54**).
+- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.56**).
   Wird in der Sidebar angezeigt, so sieht der Nutzer, ob Hot Reload den neuen Stand hat.
 - Design-Tokens in `src/styles/tokens.css` entsprechen 1:1 den Figma-Variablen —
   keine Werte erfinden.
@@ -110,6 +110,8 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 | 0.52 | Seite **Einstellungen** (`SettingsPage.jsx`) mit „Aus Mela importieren“: `.melarecipes`/`.melarecipe` wählen → `MelaImportModal.jsx` (Vorschau mit Häkchen, „Schon vorhanden“ abgewählt → Fortschritt → Zusammenfassung mit Hinweisen). Parser `src/lib/melaParser.js` (JSZip und heic2any, beide erst bei Bedarf geladen), Speichern `src/lib/melaImport.js`. Einheit wird jetzt auch ohne Menge angezeigt („Prise Zimt“). Figma: Screens – User → Mela-Import (v0.52) |
 | 0.53 | Zutatenliste (Detailseite + Kochmodus): keine grünen Aufzählungspunkte mehr, Mengen-Spalte (80 px) rechtsbündig und immer vorhanden → Zutaten ohne Menge stehen bündig. Mela-Import: Titel komplett in GROSSBUCHSTABEN werden normal geschrieben (`normalisiereTitel`: jedes Wort groß, Füllwörter wie „mit/und/vom“ klein); englische Einheiten (tablespoon, litre, pinch …) erkannt. Figma: Rezept Detail (erweitert) angepasst |
 | 0.54 | Mela-Import erkennt Überschriften in der Zutatenliste (`pruefeUeberschrift`): reine Überschriften/Portionsangaben („ZUTATEN FÜR 4 PERSONEN“, „Ingredients“, „Portionen: 12“) fallen weg (Portionen werden übernommen, wenn das Rezept keine hat); Zwischenüberschriften („Für die Sauce“, „DRESSING“, „Burger sauce:“) → Gruppe; „Optional: 1 Paprika“ → Zutat mit Notiz „Optional“. Großbuchstaben-Regel nur, wenn die übrige Liste normal geschrieben ist. Geprüft an allen 617 Rezepten der Nutzer-Datei |
+| 0.55 | „…“-Button sitzt in ALLEN Cards an derselben Stelle (absolut, 16 px von rechts/unten; Footer halten 36 px frei). Menü klappt direkt unter dem Button auf, linke Kante bündig; ragt es aus dem Fenster, klappt es nach links (`useMenuNachLinks`). Gilt auch für „Kategorie zuordnen“ in der Zutaten-Card. Figma: Card-Optionen angepasst; Button-Komponente hat neue Variante **Style=Danger** (feedback/error) |
+| 0.56 | Eigener Lösch-Dialog statt `window.confirm` an allen 10 Stellen (folgt Light/Dark Mode): `bestaetigen({ titel, text })` aus `src/lib/bestaetigen.js` liefert ein Promise (true/false), Anzeige über `ConfirmDialogHost.jsx` (einmal in App.jsx). Fokus auf „Abbrechen“, Escape/Klick daneben = Abbrechen. Neuer Button-Stil `.btn-danger`. Figma: Card-Optionen → Lösch-Dialog Light/Dark |
 
 Getroffene Entscheidungen:
 - Einkaufsliste: gleiche Zutat + gleiche Einheit innerhalb eines Rezepts wird zu einer Zeile
@@ -142,6 +144,9 @@ Getroffene Entscheidungen:
   Alle Bilder übernehmen, `date` → `created_at`.
 
 ## Offene Punkte / ungeprüft
+
+- **Konvention:** Für Sicherheitsabfragen immer `await bestaetigen({ titel, text })` benutzen,
+  nie `window.confirm` (sieht im Dark Mode falsch aus).
 
 - **v0.52 Mela-Import:** Ablauf im Browser mit selbst erzeugter Testdatei geprüft (3 Rezepte:
   Bilder, Gruppen, ohne Titel, kaputtes Bild; zweiter Import → alle „Schon vorhanden“).

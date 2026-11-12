@@ -9,6 +9,7 @@ import SimpleTable from "../components/SimpleTable.jsx";
 import NewRecipeForm from "./NewRecipeForm.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import { DEMO_RECIPE_DETAILS } from "../lib/demoRecipeDetails.js";
+import { bestaetigen } from "../lib/bestaetigen.js";
 
 // Demo-Daten — werden nur angezeigt, solange die Supabase-Tabelle "recipes" leer ist.
 // So kannst du die App sofort sehen, bevor Supabase eingerichtet ist.
@@ -94,7 +95,7 @@ export default function RecipesOverview() {
   }
 
   async function handleDelete(recipe) {
-    if (!window.confirm(`„${recipe.titel}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+    if (!(await bestaetigen({ titel: "Rezept löschen?", text: `„${recipe.titel}“ wird gelöscht. Das kann nicht rückgängig gemacht werden.` }))) return;
     try {
       await deleteRecipe(recipe.id);
     } catch (err) {

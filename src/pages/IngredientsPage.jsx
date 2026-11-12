@@ -8,6 +8,7 @@ import SimpleList from "../components/SimpleList.jsx";
 import SimpleTable from "../components/SimpleTable.jsx";
 import CollapsibleGroupHeader from "../components/CollapsibleGroupHeader.jsx";
 import FilteredRecipesPage from "./FilteredRecipesPage.jsx";
+import { bestaetigen } from "../lib/bestaetigen.js";
 
 const OHNE_KATEGORIE = "Ohne Kategorie";
 const EXPANDED_STORAGE_KEY = "kochrezepte-zutaten-aufgeklappte-kategorien";
@@ -100,7 +101,7 @@ export default function IngredientsPage({ isAdmin }) {
 
   async function handleDelete(ingredient) {
     if (ingredient.count > 0) return; // Button ist in diesem Fall ohnehin deaktiviert
-    if (!window.confirm(`"${ingredient.name}" wirklich löschen?`)) return;
+    if (!(await bestaetigen({ titel: "Zutat löschen?", text: `„${ingredient.name}“ wird gelöscht.` }))) return;
     const { error } = await supabase.from("ingredients").delete().eq("id", ingredient.id);
     if (error) {
       alert("Löschen fehlgeschlagen: " + error.message);

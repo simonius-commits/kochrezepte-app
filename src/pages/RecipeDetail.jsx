@@ -4,6 +4,7 @@ import Tag from "../components/Tag.jsx";
 import CookMode from "../components/CookMode.jsx";
 import ShoppingListModal from "../components/ShoppingListModal.jsx";
 import { getDomain, toAbsoluteUrl } from "../lib/getDomain.js";
+import { bestaetigen } from "../lib/bestaetigen.js";
 
 function round2(n) {
   return Math.round(n * 100) / 100;
@@ -165,7 +166,12 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
 
   async function handleDelete() {
     if (isDemo) return;
-    if (!window.confirm(`"${recipe.titel}" wirklich löschen? Das kann nicht rückgängig gemacht werden.`)) {
+    if (
+      !(await bestaetigen({
+        titel: "Rezept löschen?",
+        text: `„${recipe.titel}“ wird gelöscht. Das kann nicht rückgängig gemacht werden.`,
+      }))
+    ) {
       return;
     }
     setDeleting(true);
