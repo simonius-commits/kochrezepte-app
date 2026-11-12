@@ -1,6 +1,8 @@
 import { APP_VERSION } from "../version.js";
 
-const TOP_ITEMS = [
+// Menüpunkte — werden auch von der Handy-Navigation (MobileNav.jsx) benutzt.
+
+export const TOP_ITEMS = [
   { key: "rezepte", label: "Rezepte" },
   { key: "einkaufen", label: "Einkaufen" },
   { key: "sammlungen", label: "Sammlungen" },
@@ -11,13 +13,13 @@ const TOP_ITEMS = [
   { key: "hilfsmittel", label: "Hilfsmittel" },
 ];
 
-const ADMIN_ITEMS = [
+export const ADMIN_ITEMS = [
   { key: "zutaten-kategorien", label: "Zutaten-Kategorien" },
   { key: "nutzer", label: "Nutzer:innen" },
   { key: "user-feedback", label: "User-Feedback" },
 ];
 
-const BOTTOM_ITEMS = [
+export const BOTTOM_ITEMS = [
   { key: "einstellungen", label: "Einstellungen" },
   { key: "benutzerprofil", label: "Benutzerprofil" },
 ];

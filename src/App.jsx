@@ -19,6 +19,7 @@ import FeedbackPage from "./pages/FeedbackPage.jsx";
 import ShoppingListPage from "./pages/ShoppingListPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import Sidebar from "./components/Sidebar.jsx";
+import MobileNav from "./components/MobileNav.jsx";
 import ConfirmDialogHost from "./components/ConfirmDialogHost.jsx";
 
 const VIEW_TITLES = {
@@ -101,6 +102,13 @@ export default function App() {
         isAdmin={isAdmin}
       />
       <div className="app-shell-content">{renderContent()}</div>
+      {/* Nur auf dem Handy sichtbar (index.css): Leiste unten statt Sidebar */}
+      <MobileNav
+        activeView={activeView}
+        onNavigate={setActiveView}
+        onSignOut={handleSignOut}
+        isAdmin={isAdmin}
+      />
       <ConfirmDialogHost />
     </div>
   );
