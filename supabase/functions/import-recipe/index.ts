@@ -19,7 +19,7 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt (kein Markdown, kein Fließtext d
   "schwierigkeit": eine von "einfach" | "mittel" | "schwer" | null,
   "autor": string oder null (Name des/der Koch/Köchin/Autor:in, falls erkennbar),
   "kochbuch": string oder null (Titel des Kochbuchs, falls die Quelle eines ist),
-  "ingredients": [ { "menge": number oder null, "einheit": string oder null, "name": string } ],
+  "ingredients": [ { "menge": number oder null, "einheit": string oder null, "name": string, "notiz": string oder null } ],
   "steps": [ string ],
   "tags": [ string ],
   "kalorien_kcal": number oder null (pro Portion),
@@ -29,6 +29,11 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt (kein Markdown, kein Fließtext d
   "ballaststoffe_g": number oder null (pro Portion),
   "zucker_g": number oder null (pro Portion)
 }
+Zutaten: "name" ist NUR die Ware, so wie man sie einkauft (z.B. "Süßkartoffeln", "Zwiebel", "Parmesan").
+Alles, was die Zubereitung oder den Zustand beschreibt, kommt in "notiz" (z.B. "ungeschält, längshalbiert",
+"fein gewürfelt", "gerieben", "zimmerwarm", "optional", "plus mehr zum Bestreuen"). Beispiel:
+"2 Süßkartoffeln, ungeschält, längshalbiert" → { "menge": 2, "einheit": null, "name": "Süßkartoffeln", "notiz": "ungeschält, längshalbiert" }.
+Gibt es nichts dergleichen, ist "notiz" null.
 Wenn ein Wert nicht zweifelsfrei aus der Quelle hervorgeht, benutze null (bei Zahlen/Kategorie/Schwierigkeit/Autor/Kochbuch)
 bzw. eine leere Liste (bei ingredients/steps/tags). Erfinde keine Angaben, insbesondere keine Nährwerte —
 wenn sie nicht explizit in der Quelle stehen, alle sechs Nährwert-Felder auf null lassen.

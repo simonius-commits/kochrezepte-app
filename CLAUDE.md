@@ -32,7 +32,7 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 
 ## Konventionen im Code
 
-- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.44**).
+- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.49**).
   Wird in der Sidebar angezeigt, so sieht der Nutzer, ob Hot Reload den neuen Stand hat.
 - Design-Tokens in `src/styles/tokens.css` entsprechen 1:1 den Figma-Variablen —
   keine Werte erfinden.
@@ -103,12 +103,15 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 | 0.45 | Passwort vergessen: Link im Login → E-Mail mit Link (`resetPasswordForEmail`, redirectTo = aktuelle App-Adresse) → Screen „Neues Passwort festlegen“ (`NewPasswordScreen.jsx`), danach direkt eingeloggt. Abgelaufener Link → Fehlermeldung im Login. Figma: Screens – User → Sonstiges |
 | 0.46 | Einkaufsliste: Button „Für das Rezept einkaufen“ (Detailseite) → Modal mit Checkboxen (alle vorausgewählt) → Seite „Einkaufen“ (Akkordeon pro Rezept, abhaken, Rezept entfernen). Rezept schon auf der Liste → Rückfrage Ersetzen / Mengen addieren. Tabellen `shopping_list_recipes` + `shopping_list_items` (`supabase/migration-einkaufsliste.sql`, in Supabase ausgeführt). Figma: Screens – User → Einkaufsliste |
 | 0.47 | Einkaufen: Tabs „Nach Rezepten | Alle Zutaten“ (Tags wie im Import-Modal). „Alle Zutaten“: eine Zeile pro Zutat über alle Rezepte, Mengen pro Einheit summiert („150 ml + 10 EL“), Unterzeile mit Rezepten; Umschalter „Nach Kategorie | Alphabetisch“ (ViewSwitcher mit `options`). Abhaken gilt für alle Rezepte. |
+| 0.48 | Einkaufen: Sektion „Eingekauft/Vorhanden“ — abgehakte Zutaten wandern sofort nach unten (pro Rezept als kleine graue Überschrift; bei „Alle Zutaten“ eigene Gruppe ganz unten, auch bei „Alphabetisch“), klappbar, standardmäßig offen. Kategorien mit nur Erledigtem verschwinden. Figma: Screens – User → Einkaufsliste (2 neue Screens) |
+| 0.49 | Modal „Für das Rezept einkaufen“ zeigt nur noch die Ware, nicht mehr „, Notiz“. Import-Prompt der Edge Function fragt jetzt ausdrücklich `notiz` getrennt vom Namen ab (Stand 12.11.2026: in der DB gab es keine Zutatennamen mit Komma — Notizen lagen schon korrekt in `recipe_ingredients.notiz`) |
 
 Getroffene Entscheidungen:
 - Einkaufsliste: gleiche Zutat + gleiche Einheit innerhalb eines Rezepts wird zu einer Zeile
   zusammengefasst; Addieren nur bei gleicher Einheit (keine Umrechnung). Zutaten-Notizen
   („gewürfelt“) werden nicht auf die Liste übernommen. Sortierung beim Laden: offene zuerst,
-  dann alphabetisch. Nach dem Hinzufügen schließt das Modal ohne Erfolgsmeldung (nicht im Design).
+  dann alphabetisch. Abgehakte Zutaten springen sofort in „Eingekauft/Vorhanden“ (bewusst so
+  gewollt: einfacher beim Einkaufen). Nach dem Hinzufügen schließt das Modal ohne Erfolgsmeldung (nicht im Design).
 - Kochbuch/Sammlung/Kategorie/Tag dürfen gelöscht werden, auch wenn Rezepte zugeordnet sind —
   nach Sicherheitsabfrage, die Rezepte bleiben, nur die Zuordnung fällt weg. (Rezepte →
   Kochbuch/Kategorie haben kein „on delete set null“, deshalb löst `deleteEntity` die
@@ -117,6 +120,11 @@ Getroffene Entscheidungen:
 - Auf der Detailseite stehen „aus „Kochbuch““ und „Quelle: domain ↗“ beide, auch wenn gleich.
 
 ## Offene Punkte / ungeprüft
+
+- **Geprüft am 12.11.2026 (im Browser, eingeloggt):** v0.48 „Eingekauft/Vorhanden“ in beiden
+  Tabs, Abhaken → sofort nach unten, Haken raus → zurück. v0.49 Modal zeigt nur die Ware.
+- **v0.49 Import-Prompt:** Edge Function `import-recipe` ist noch nicht neu deployt (kein
+  Supabase-CLI installiert → im Dashboard unter Edge Functions den Code ersetzen).
 
 
 - **v0.45 Passwort vergessen:** Oberfläche im Browser geprüft; der echte Ablauf (E-Mail →
@@ -130,5 +138,4 @@ Getroffene Entscheidungen:
   `migration-user-feedback.sql` in `schema.sql` ist trotzdem noch aufzuräumen).
 - **Login-Probleme auf einem Rechner?** Zuerst `.env` prüfen: Auf dem zweiten Rechner war sie
   eine unveränderte Kopie von `.env.example` (Platzhalter) → Fehler „Load failed“.
-- Ideen für später: Import könnte Zutaten-Notizen („fein gehackt“) mit übernehmen;
-  echtes „externer Link“-Icon im Design System.
+- Ideen für später: echtes „externer Link“-Icon im Design System.

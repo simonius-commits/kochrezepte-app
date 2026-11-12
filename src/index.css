@@ -1657,3 +1657,24 @@ body {
   font-size: 13px;
   color: var(--color-text-secondary);
 }
+
+/* --- Einkaufsliste: Sektion „Eingekauft/Vorhanden“ --- */
+/* Im Tab „Nach Rezepten“: kleine graue Überschrift innerhalb der Liste eines Rezepts */
+.shopping-done-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: var(--spacing-sm) 0 0 0;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+}
+/* Im Tab „Alle Zutaten“ (alphabetisch): Abstand zwischen offener Liste und Sektion */
+.shopping-open-list {
+  margin-bottom: var(--spacing-lg);
+}

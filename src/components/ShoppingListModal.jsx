@@ -116,10 +116,8 @@ export default function ShoppingListModal({ recipe, portionen, ingredients, onCl
                   <strong className="shopping-select-menge">
                     {ing.menge != null ? `${ing.menge}${ing.einheit ? ` ${ing.einheit}` : ""}` : ""}
                   </strong>
-                  <span className="shopping-select-name">
-                    {ing.name}
-                    {ing.notiz && `, ${ing.notiz}`}
-                  </span>
+                  {/* Nur die Ware — Zubereitungs-Notizen („ungeschält, längshalbiert“) gehören nicht auf die Einkaufsliste */}
+                  <span className="shopping-select-name">{ing.name}</span>
                 </Checkbox>
               ))}
             </div>

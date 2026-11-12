@@ -277,7 +277,7 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
           menge: ing.menge != null ? String(ing.menge) : "",
           einheit: ing.einheit || "",
           name: ing.name || "",
-          // Der Import liefert (noch) keine Notiz — trotzdem immer einen Text setzen,
+          // Der Import trennt Ware ("name") und Zubereitung ("notiz"). Immer einen Text setzen,
           // sonst stürzt das Speichern bei ing.notiz.trim() ab.
           notiz: ing.notiz || "",
         }))

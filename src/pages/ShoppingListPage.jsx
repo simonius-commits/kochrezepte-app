@@ -15,9 +15,12 @@ import {
  * Tab „Nach Rezepten“: Akkordeon pro Rezept; abhaken; Mülleimer nimmt das Rezept von der Liste.
  * Tab „Alle Zutaten“: eine Zeile pro Zutat über alle Rezepte, Mengen summiert, Unterzeile mit
  *   den Rezepten; sortiert nach Zutaten-Kategorie oder alphabetisch. Abhaken gilt für alle Rezepte.
+ * Abgehakte Zutaten wandern SOFORT in die Sektion „Eingekauft/Vorhanden“ (pro Rezept bzw. ganz
+ *   unten bei „Alle Zutaten“), klappbar, standardmäßig offen. Haken raus → zurück nach oben.
  */
 
 const OHNE_KATEGORIE = "Ohne Kategorie";
+const EINGEKAUFT = "Eingekauft/Vorhanden";
 const SORT_OPTIONS = [
   { key: "kategorie", label: "Nach Kategorie" },
   { key: "alphabetisch", label: "Alphabetisch" },
@@ -80,9 +83,6 @@ export default function ShoppingListPage() {
   const [collapsed, setCollapsed] = useState(new Set()); // Rezepte UND Kategorien; standardmäßig alles offen
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  // Welche Zutaten beim Öffnen des Tabs schon erledigt waren — danach wird sortiert. So rutscht
-  // eine Zeile beim Abhaken nicht sofort nach unten, sondern erst beim nächsten Öffnen.
-  const [doneSnapshot, setDoneSnapshot] = useState(new Set());
 
   useEffect(() => {
     loadShoppingList()
@@ -92,12 +92,6 @@ export default function ShoppingListPage() {
   }, []);
 
   const ingredientRows = useMemo(() => aggregateByIngredient(entries), [entries]);
-
-  // Snapshot neu erstellen nach dem Laden und bei jedem Tab-/Sortierwechsel (nicht beim Abhaken).
-  useEffect(() => {
-    setDoneSnapshot(new Set(ingredientRows.filter((r) => r.done).map((r) => r.ingredientId)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, tab, sort]);
 
   function toggleCollapsed(key) {
     setCollapsed((prev) => {
@@ -143,13 +137,7 @@ export default function ShoppingListPage() {
     0
   );
 
-  // Offene zuerst (laut Snapshot), dann alphabetisch
-  const sortRows = (rows) =>
-    [...rows].sort(
-      (a, b) =>
-        Number(doneSnapshot.has(a.ingredientId)) - Number(doneSnapshot.has(b.ingredientId)) ||
-        a.name.localeCompare(b.name, "de")
-    );
+  const sortRows = (rows) => [...rows].sort((a, b) => a.name.localeCompare(b.name, "de"));
 
   function renderIngredientRow(row) {
     return (
@@ -171,13 +159,42 @@ export default function ShoppingListPage() {
     );
   }
 
+  // Sektion „Eingekauft/Vorhanden“ ganz unten im Tab „Alle Zutaten“
+  function renderDoneSection(doneRows) {
+    if (doneRows.length === 0) return null;
+    const key = "eingekauft:alle";
+    return (
+      <div className="ingredient-group">
+        <CollapsibleGroupHeader
+          title={`${EINGEKAUFT} (${doneRows.length})`}
+          muted
+          collapsed={collapsed.has(key)}
+          onToggle={() => toggleCollapsed(key)}
+        />
+        {!collapsed.has(key) && (
+          <div className="simple-list">{sortRows(doneRows).map(renderIngredientRow)}</div>
+        )}
+      </div>
+    );
+  }
+
   function renderAllIngredients() {
+    const openRows = ingredientRows.filter((r) => !r.done);
+    const doneRows = ingredientRows.filter((r) => r.done);
     if (sort === "alphabetisch") {
-      return <div className="simple-list">{sortRows(ingredientRows).map(renderIngredientRow)}</div>;
+      return (
+        <>
+          {openRows.length > 0 && (
+            <div className="simple-list shopping-open-list">{sortRows(openRows).map(renderIngredientRow)}</div>
+          )}
+          {renderDoneSection(doneRows)}
+        </>
+      );
     }
-    // Nach Kategorie gruppiert (Kategorien wie auf der Zutaten-Seite), "Ohne Kategorie" zuletzt
+    // Nach Kategorie gruppiert (Kategorien wie auf der Zutaten-Seite), "Ohne Kategorie" zuletzt.
+    // Nur offene Zutaten — eine Kategorie, in der alles erledigt ist, verschwindet.
     const byKategorie = new Map();
-    for (const row of ingredientRows) {
+    for (const row of openRows) {
       if (!byKategorie.has(row.kategorie)) byKategorie.set(row.kategorie, []);
       byKategorie.get(row.kategorie).push(row);
     }
@@ -186,7 +203,7 @@ export default function ShoppingListPage() {
       .sort((a, b) => a.localeCompare(b, "de"));
     if (byKategorie.has(OHNE_KATEGORIE)) kategorien.push(OHNE_KATEGORIE);
 
-    return kategorien.map((kategorie) => {
+    const groups = kategorien.map((kategorie) => {
       const key = "kategorie:" + kategorie;
       return (
         <div key={key} className="ingredient-group">
@@ -202,13 +219,46 @@ export default function ShoppingListPage() {
         </div>
       );
     });
+    return (
+      <>
+        {groups}
+        {renderDoneSection(doneRows)}
+      </>
+    );
+  }
+
+  function renderRecipeItem(item) {
+    return (
+      <div key={item.id} className="simple-list-row">
+        <Checkbox
+          checked={item.erledigt}
+          onChange={(checked) => handleToggleItems([item.id], checked)}
+          className="shopping-item"
+        >
+          <span className={`simple-list-title${item.erledigt ? " shopping-item-done" : ""}`}>
+            {item.ingredients?.name}
+          </span>
+          {item.menge != null && (
+            <span className="simple-list-meta">
+              {item.menge}
+              {item.einheit ? ` ${item.einheit}` : ""}
+            </span>
+          )}
+        </Checkbox>
+      </div>
+    );
   }
 
   function renderByRecipe() {
     return entries.map((entry) => {
       const items = entry.shopping_list_items;
-      const erledigt = items.filter((i) => i.erledigt).length;
+      const openItems = items.filter((i) => !i.erledigt);
+      const doneItems = items.filter((i) => i.erledigt);
+      const erledigt = doneItems.length;
       const isCollapsed = collapsed.has(entry.id);
+      const doneKey = "eingekauft:" + entry.id;
+      const doneCollapsed = collapsed.has(doneKey);
+      const DoneChevron = doneCollapsed ? ChevronUp : ChevronDown;
       // Gleiche Chevron-Logik wie bei den Zutaten-Gruppen (CollapsibleGroupHeader)
       const Chevron = isCollapsed ? ChevronUp : ChevronDown;
       return (
@@ -240,25 +290,19 @@ export default function ShoppingListPage() {
 
           {!isCollapsed && (
             <div className="simple-list">
-              {items.map((item) => (
-                <div key={item.id} className="simple-list-row">
-                  <Checkbox
-                    checked={item.erledigt}
-                    onChange={(checked) => handleToggleItems([item.id], checked)}
-                    className="shopping-item"
-                  >
-                    <span className={`simple-list-title${item.erledigt ? " shopping-item-done" : ""}`}>
-                      {item.ingredients?.name}
-                    </span>
-                    {item.menge != null && (
-                      <span className="simple-list-meta">
-                        {item.menge}
-                        {item.einheit ? ` ${item.einheit}` : ""}
-                      </span>
-                    )}
-                  </Checkbox>
-                </div>
-              ))}
+              {openItems.map(renderRecipeItem)}
+              {doneItems.length > 0 && (
+                <button
+                  type="button"
+                  className="shopping-done-header"
+                  onClick={() => toggleCollapsed(doneKey)}
+                  aria-expanded={!doneCollapsed}
+                >
+                  {EINGEKAUFT} ({doneItems.length})
+                  <DoneChevron size={16} className="ingredient-group-chevron" />
+                </button>
+              )}
+              {!doneCollapsed && doneItems.map(renderRecipeItem)}
             </div>
           )}
         </div>
