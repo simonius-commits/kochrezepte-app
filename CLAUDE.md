@@ -32,7 +32,7 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 
 ## Konventionen im Code
 
-- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.51**).
+- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.54**).
   Wird in der Sidebar angezeigt, so sieht der Nutzer, ob Hot Reload den neuen Stand hat.
 - Design-Tokens in `src/styles/tokens.css` entsprechen 1:1 den Figma-Variablen —
   keine Werte erfinden.
@@ -107,6 +107,9 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 | 0.49 | Modal „Für das Rezept einkaufen“ zeigt nur noch die Ware, nicht mehr „, Notiz“. Import-Prompt der Edge Function fragt jetzt ausdrücklich `notiz` getrennt vom Namen ab (Stand 12.11.2026: in der DB gab es keine Zutatennamen mit Komma — Notizen lagen schon korrekt in `recipe_ingredients.notiz`) |
 | 0.50 | Rezept-Erweiterung (Vorbereitung Mela-Import, „keine Information soll wegfallen“): mehrere Bilder (`recipe_images`, Reihenfolge 0 = Titelbild; Galerie auf der Detailseite, im Formular hinzufügen/← →/×), `notizen`, `naehrwerte_text`, `portionen_text`, `gesamtzeit_min`, `favorit` (Herz auf der Card), `will_kochen` (beide per Klick auf der Detailseite), Gruppen bei Zutaten und Schritten (`gruppe`), `reihenfolge` für Zutaten, `import_quelle`/`import_id`. Migration `supabase/migration-rezept-erweiterung.sql` (in Supabase ausgeführt). Figma: Screens – User → Rezept-Erweiterung (v0.50) |
 | 0.51 | Galerie: unter dem großen Bild stehen nur die anderen Bilder (das große nicht doppelt); Klick auf eine Vorschau tauscht sie mit dem großen Bild |
+| 0.52 | Seite **Einstellungen** (`SettingsPage.jsx`) mit „Aus Mela importieren“: `.melarecipes`/`.melarecipe` wählen → `MelaImportModal.jsx` (Vorschau mit Häkchen, „Schon vorhanden“ abgewählt → Fortschritt → Zusammenfassung mit Hinweisen). Parser `src/lib/melaParser.js` (JSZip und heic2any, beide erst bei Bedarf geladen), Speichern `src/lib/melaImport.js`. Einheit wird jetzt auch ohne Menge angezeigt („Prise Zimt“). Figma: Screens – User → Mela-Import (v0.52) |
+| 0.53 | Zutatenliste (Detailseite + Kochmodus): keine grünen Aufzählungspunkte mehr, Mengen-Spalte (80 px) rechtsbündig und immer vorhanden → Zutaten ohne Menge stehen bündig. Mela-Import: Titel komplett in GROSSBUCHSTABEN werden normal geschrieben (`normalisiereTitel`: jedes Wort groß, Füllwörter wie „mit/und/vom“ klein); englische Einheiten (tablespoon, litre, pinch …) erkannt. Figma: Rezept Detail (erweitert) angepasst |
+| 0.54 | Mela-Import erkennt Überschriften in der Zutatenliste (`pruefeUeberschrift`): reine Überschriften/Portionsangaben („ZUTATEN FÜR 4 PERSONEN“, „Ingredients“, „Portionen: 12“) fallen weg (Portionen werden übernommen, wenn das Rezept keine hat); Zwischenüberschriften („Für die Sauce“, „DRESSING“, „Burger sauce:“) → Gruppe; „Optional: 1 Paprika“ → Zutat mit Notiz „Optional“. Großbuchstaben-Regel nur, wenn die übrige Liste normal geschrieben ist. Geprüft an allen 617 Rezepten der Nutzer-Datei |
 
 Getroffene Entscheidungen:
 - Einkaufsliste: gleiche Zutat + gleiche Einheit innerhalb eines Rezepts wird zu einer Zeile
@@ -126,7 +129,11 @@ Getroffene Entscheidungen:
   für alle folgenden Zeilen. Neue Gruppen werden unten angehängt (Zutaten verschieben gibt es
   noch nicht). Schrittnummern laufen über Gruppen hinweg durch.
 - Duplizieren: Import-Kennung (`import_quelle`/`import_id`) bleibt nur beim Original.
-- **Mela-Import (geplant, nächster Schritt):** Einstellungen → „Aus Mela importieren“ →
+- **Mela-Import (umgesetzt in v0.52):** Unvollständige Rezepte werden IMMER importiert
+  (kein Titel → „Ohne Titel“, kaputtes Bild → ohne dieses Bild) und als Hinweis gemeldet; nur
+  wenn das Rezept selbst nicht gespeichert werden kann, ist es ein Fehler. Kein Abbrechen
+  während des Imports. Bewusst doppelt importiert → ohne `import_id` gespeichert.
+  Einstellungen → „Aus Mela importieren“ →
   `.melarecipes` (ZIP mit JSON je Rezept, Bilder Base64) im Browser entpacken (JSZip) →
   Vorschau mit Häkchen, Duplikate (gleicher Titel bzw. gleiche `import_id`) markiert und
   abgewählt → Import mit Fortschritt → Zusammenfassung. Zutaten per festen Regeln zerlegen
@@ -135,6 +142,21 @@ Getroffene Entscheidungen:
   Alle Bilder übernehmen, `date` → `created_at`.
 
 ## Offene Punkte / ungeprüft
+
+- **v0.52 Mela-Import:** Ablauf im Browser mit selbst erzeugter Testdatei geprüft (3 Rezepte:
+  Bilder, Gruppen, ohne Titel, kaputtes Bild; zweiter Import → alle „Schon vorhanden“).
+  Parser-Probelauf (ohne Speichern) mit der echten Datei des Nutzers (617 Rezepte, 177 MB,
+  487 Bilder/129 MB): Feldnamen passen, Datum = Apple-Sekunden, 0 Lesefehler. Zeiten auch als
+  „1:30“/„T02:00“; Text im Zeitfeld → Notizen; „Für 4 Portionen“ = normale Portionen.
+  Beschleunigt: Rezepte/Kategorien/Zutaten/Tags einmal seitenweise geladen (Supabase-Limit
+  1000 Zeilen!), fehlende Zutaten/Tags pro Rezept gesammelt angelegt, Zeilen je Tabelle in
+  einer Anfrage. HEIC-Bilder (15 Stück in der Datei) werden per `heic2any` (nur bei Bedarf
+  geladen) in JPEG umgewandelt. Echter Test am 12.11.2026: Datei (186 MB) in ~3 s gelesen,
+  3 echte Rezepte in 3,6 s importiert (inkl. HEIC) → für alle ca. 5–10 Min. erwartet.
+  **Offen:** den großen Import macht der Nutzer selbst.
+  Testrezepte „Mela-Test: …“, „Ohne Titel“ und Tag „Mela-Test-Tag“ wieder löschen.
+- **Rezept-Beschreibung** (`recipes.beschreibung`, Mela `text`) wird gespeichert, aber weder auf
+  der Detailseite angezeigt noch im Formular bearbeitbar → Design in Figma nötig.
 
 - **v0.50 geprüft am 12.11.2026 (im Browser, eingeloggt):** Formular lädt bestehendes Rezept
   mit allen neuen Feldern; Testrezept „Testrezept v0.50 (bitte löschen)“ angelegt → Gesamtzeit,

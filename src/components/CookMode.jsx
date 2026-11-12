@@ -209,13 +209,8 @@ export default function CookMode({ recipeTitel, steps, ingredients, toolNames = 
             <div className="detail-ingredient-list">
               {ingredients.map((ing) => (
                 <div className="detail-ingredient-row" key={ing.id}>
-                  <span className="ingredient-dot" />
-                  {ing.menge != null && (
-                    <strong>
-                      {ing.menge}
-                      {ing.einheit ? ` ${ing.einheit}` : ""}
-                    </strong>
-                  )}
+                  {/* Mengen-Spalte immer da (auch leer), damit alle Zutaten bündig stehen */}
+                  <strong>{[ing.menge, ing.einheit].filter((x) => x != null && x !== "").join(" ")}</strong>
                   <span>{ing.name}</span>
                 </div>
               ))}

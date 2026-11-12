@@ -377,13 +377,9 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
             const scaled = ing.menge != null ? round2(ing.menge * factor) : null;
             return (
               <div className="detail-ingredient-row" key={ing.id}>
-                <span className="ingredient-dot" />
-                {scaled != null && (
-                  <strong>
-                    {scaled}
-                    {ing.einheit ? ` ${ing.einheit}` : ""}
-                  </strong>
-                )}
+                {/* Mengen-Spalte immer da (auch leer), damit alle Zutaten bündig untereinander stehen.
+                    Einheit auch ohne Menge zeigen („Prise Zimt“). */}
+                <strong>{[scaled, ing.einheit].filter((x) => x != null && x !== "").join(" ")}</strong>
                 <span>
                   {name}
                   {ing.notiz && <span className="detail-ingredient-notiz">, {ing.notiz}</span>}

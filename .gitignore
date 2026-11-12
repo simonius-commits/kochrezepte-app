@@ -5,3 +5,7 @@ dist
 # Rechner-spezifisch, gehört nicht ins Repository
 .claude/settings.local.json
 supabase/.temp
+
+# Mela-Exportdateien (enthalten private Rezepte/Bilder) nie ins Repo
+*.melarecipes
+*.melarecipe

@@ -114,7 +114,7 @@ export default function ShoppingListModal({ recipe, portionen, ingredients, onCl
                   className="shopping-select-row"
                 >
                   <strong className="shopping-select-menge">
-                    {ing.menge != null ? `${ing.menge}${ing.einheit ? ` ${ing.einheit}` : ""}` : ""}
+                    {[ing.menge, ing.einheit].filter((x) => x != null && x !== "").join(" ")}
                   </strong>
                   {/* Nur die Ware — Zubereitungs-Notizen („ungeschält, längshalbiert“) gehören nicht auf die Einkaufsliste */}
                   <span className="shopping-select-name">{ing.name}</span>

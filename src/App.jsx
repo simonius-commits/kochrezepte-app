@@ -17,10 +17,10 @@ import UsersPage from "./pages/UsersPage.jsx";
 import ImpressumPage from "./pages/ImpressumPage.jsx";
 import FeedbackPage from "./pages/FeedbackPage.jsx";
 import ShoppingListPage from "./pages/ShoppingListPage.jsx";
+import SettingsPage from "./pages/SettingsPage.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 
 const VIEW_TITLES = {
-  einstellungen: "Einstellungen",
   benutzerprofil: "Benutzerprofil",
 };
 
@@ -84,6 +84,8 @@ export default function App() {
         return isAdmin ? <FeedbackPage /> : <PlaceholderPage title="Kein Zugriff" />;
       case "impressum":
         return <ImpressumPage />;
+      case "einstellungen":
+        return <SettingsPage onNavigate={setActiveView} />;
       default:
         return <PlaceholderPage title={VIEW_TITLES[activeView] || activeView} />;
     }
