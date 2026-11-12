@@ -152,18 +152,13 @@ Getroffene Entscheidungen:
 - **Konvention:** Für Sicherheitsabfragen immer `await bestaetigen({ titel, text })` benutzen,
   nie `window.confirm` (sieht im Dark Mode falsch aus).
 
-- **v0.52 Mela-Import:** Ablauf im Browser mit selbst erzeugter Testdatei geprüft (3 Rezepte:
-  Bilder, Gruppen, ohne Titel, kaputtes Bild; zweiter Import → alle „Schon vorhanden“).
-  Parser-Probelauf (ohne Speichern) mit der echten Datei des Nutzers (617 Rezepte, 177 MB,
-  487 Bilder/129 MB): Feldnamen passen, Datum = Apple-Sekunden, 0 Lesefehler. Zeiten auch als
-  „1:30“/„T02:00“; Text im Zeitfeld → Notizen; „Für 4 Portionen“ = normale Portionen.
-  Beschleunigt: Rezepte/Kategorien/Zutaten/Tags einmal seitenweise geladen (Supabase-Limit
-  1000 Zeilen!), fehlende Zutaten/Tags pro Rezept gesammelt angelegt, Zeilen je Tabelle in
-  einer Anfrage. HEIC-Bilder (15 Stück in der Datei) werden per `heic2any` (nur bei Bedarf
-  geladen) in JPEG umgewandelt. Echter Test am 12.11.2026: Datei (186 MB) in ~3 s gelesen,
-  3 echte Rezepte in 3,6 s importiert (inkl. HEIC) → für alle ca. 5–10 Min. erwartet.
-  **Offen:** den großen Import macht der Nutzer selbst.
-  Testrezepte „Mela-Test: …“, „Ohne Titel“ und Tag „Mela-Test-Tag“ wieder löschen.
+- **Mela-Import erledigt am 12.11.2026:** 612 von 617 Rezepten aus der Nutzer-Datei importiert
+  (5 waren schon da), 4½ Min., keine Hinweise/Fehler. Danach 621 Rezepte, 486 mit Bild.
+  Noch aufzuräumen (Nutzer): Testrezepte „Mela-Test: …“, „Ohne Titel“, „Testrezept v0.50 …“,
+  Tag „Mela-Test-Tag“; „3 MINUTEN- THUNFISCH-DIP …“ (vor der Titel-Korrektur importiert) umbenennen.
+- **Achtung ab 1000 Rezepten:** Supabase liefert pro Abfrage höchstens 1000 Zeilen. Die
+  Rezeptübersicht lädt alle Rezepte in einer Abfrage → ab 1000 Rezepten fehlen welche
+  (Mela-Import lädt bereits seitenweise, siehe `ladeAlle` in `melaImport.js`).
 - **Rezept-Beschreibung** (`recipes.beschreibung`, Mela `text`) wird gespeichert, aber weder auf
   der Detailseite angezeigt noch im Formular bearbeitbar → Design in Figma nötig.
 
