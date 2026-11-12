@@ -32,7 +32,7 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 
 ## Konventionen im Code
 
-- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.49**).
+- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.51**).
   Wird in der Sidebar angezeigt, so sieht der Nutzer, ob Hot Reload den neuen Stand hat.
 - Design-Tokens in `src/styles/tokens.css` entsprechen 1:1 den Figma-Variablen —
   keine Werte erfinden.
@@ -105,6 +105,8 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 | 0.47 | Einkaufen: Tabs „Nach Rezepten | Alle Zutaten“ (Tags wie im Import-Modal). „Alle Zutaten“: eine Zeile pro Zutat über alle Rezepte, Mengen pro Einheit summiert („150 ml + 10 EL“), Unterzeile mit Rezepten; Umschalter „Nach Kategorie | Alphabetisch“ (ViewSwitcher mit `options`). Abhaken gilt für alle Rezepte. |
 | 0.48 | Einkaufen: Sektion „Eingekauft/Vorhanden“ — abgehakte Zutaten wandern sofort nach unten (pro Rezept als kleine graue Überschrift; bei „Alle Zutaten“ eigene Gruppe ganz unten, auch bei „Alphabetisch“), klappbar, standardmäßig offen. Kategorien mit nur Erledigtem verschwinden. Figma: Screens – User → Einkaufsliste (2 neue Screens) |
 | 0.49 | Modal „Für das Rezept einkaufen“ zeigt nur noch die Ware, nicht mehr „, Notiz“. Import-Prompt der Edge Function fragt jetzt ausdrücklich `notiz` getrennt vom Namen ab (Stand 12.11.2026: in der DB gab es keine Zutatennamen mit Komma — Notizen lagen schon korrekt in `recipe_ingredients.notiz`) |
+| 0.50 | Rezept-Erweiterung (Vorbereitung Mela-Import, „keine Information soll wegfallen“): mehrere Bilder (`recipe_images`, Reihenfolge 0 = Titelbild; Galerie auf der Detailseite, im Formular hinzufügen/← →/×), `notizen`, `naehrwerte_text`, `portionen_text`, `gesamtzeit_min`, `favorit` (Herz auf der Card), `will_kochen` (beide per Klick auf der Detailseite), Gruppen bei Zutaten und Schritten (`gruppe`), `reihenfolge` für Zutaten, `import_quelle`/`import_id`. Migration `supabase/migration-rezept-erweiterung.sql` (in Supabase ausgeführt). Figma: Screens – User → Rezept-Erweiterung (v0.50) |
+| 0.51 | Galerie: unter dem großen Bild stehen nur die anderen Bilder (das große nicht doppelt); Klick auf eine Vorschau tauscht sie mit dem großen Bild |
 
 Getroffene Entscheidungen:
 - Einkaufsliste: gleiche Zutat + gleiche Einheit innerhalb eines Rezepts wird zu einer Zeile
@@ -118,8 +120,28 @@ Getroffene Entscheidungen:
   Zuordnung vorher im Code.)
 - Rezept duplizieren: Kopie heißt „… (Kopie)“, enthält alles, öffnet direkt das Bearbeiten-Formular.
 - Auf der Detailseite stehen „aus „Kochbuch““ und „Quelle: domain ↗“ beide, auch wenn gleich.
+- Bilder: `recipes.bild_url` bleibt als Kopie des Titelbilds (wird beim Speichern gesetzt), damit
+  Cards/Listen ohne Extra-Abfrage auskommen. Umsortieren per Pfeilen, Drag & Drop bewusst später.
+- Gruppen: Gruppen-Zeilen stehen im Formular in derselben Liste wie Zutaten/Schritte und gelten
+  für alle folgenden Zeilen. Neue Gruppen werden unten angehängt (Zutaten verschieben gibt es
+  noch nicht). Schrittnummern laufen über Gruppen hinweg durch.
+- Duplizieren: Import-Kennung (`import_quelle`/`import_id`) bleibt nur beim Original.
+- **Mela-Import (geplant, nächster Schritt):** Einstellungen → „Aus Mela importieren“ →
+  `.melarecipes` (ZIP mit JSON je Rezept, Bilder Base64) im Browser entpacken (JSZip) →
+  Vorschau mit Häkchen, Duplikate (gleicher Titel bzw. gleiche `import_id`) markiert und
+  abgewählt → Import mit Fortschritt → Zusammenfassung. Zutaten per festen Regeln zerlegen
+  (Menge, Einheit, Ware bis zum ersten Komma, Rest = Notiz; `#`-Zeilen = Gruppe). Mela-Kategorien:
+  gibt es eine gleichnamige Kategorie, wird die erste davon die Kategorie, der Rest Tags.
+  Alle Bilder übernehmen, `date` → `created_at`.
 
 ## Offene Punkte / ungeprüft
+
+- **v0.50 geprüft am 12.11.2026 (im Browser, eingeloggt):** Formular lädt bestehendes Rezept
+  mit allen neuen Feldern; Testrezept „Testrezept v0.50 (bitte löschen)“ angelegt → Gesamtzeit,
+  Portionen-Text, Favorit (Herz auf Card), Gruppen, Notizen, Nährwerte-Text korrekt gespeichert
+  und angezeigt; „Möchte ich kochen“ per Klick gespeichert. Mehrere Bilder hochladen hat der
+  Nutzer getestet; v0.51-Galerie (4 Bilder → 3 Vorschauen, Tauschen per Klick) im Browser
+  geprüft. **Nicht geprüft:** Duplizieren mit Bildern.
 
 - **Geprüft am 12.11.2026 (im Browser, eingeloggt):** v0.48 „Eingekauft/Vorhanden“ in beiden
   Tabs, Abhaken → sofort nach unten, Haken raus → zurück. v0.49 Modal zeigt nur die Ware.

@@ -9,12 +9,39 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
+// Zutaten in fester Reihenfolge laden (Gruppen wie „Für die Soße“ hängen davon ab)
+const INGREDIENT_SELECT = "id, ingredient_id, menge, einheit, notiz, gruppe, reihenfolge, ingredients(name)";
+
+/** 70 → "1 Std 10 Min", 45 → "45 Min" */
+export function formatMinuten(min) {
+  if (!min) return null;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (!h) return `${m} Min`;
+  return m ? `${h} Std ${m} Min` : `${h} Std`;
+}
+
+/** Zeilen mit Gruppen-Überschrift dazwischen: [{gruppe}, item, item, {gruppe}, item …] */
+function withGroups(items) {
+  const out = [];
+  let current = null;
+  for (const item of items) {
+    const g = (item.gruppe || "").trim();
+    if (g && g !== current) out.push({ isGroup: true, gruppe: g });
+    current = g || current;
+    out.push(item);
+  }
+  return out;
+}
+
 export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDeleted }) {
   const isDemo = Boolean(demoData);
 
   const [recipe, setRecipe] = useState(demoData || null);
   const [ingredients, setIngredients] = useState(demoData ? demoData.ingredients : []);
-  const [steps, setSteps] = useState(demoData ? demoData.steps : []);
+  const [steps, setSteps] = useState(demoData ? demoData.steps.map((text) => ({ text })) : []);
+  const [images, setImages] = useState(demoData?.bild_url ? [{ id: "demo", url: demoData.bild_url }] : []);
+  const [activeImage, setActiveImage] = useState(0);
   const [tags, setTags] = useState(demoData ? demoData.tags : []);
   const [hilfsmittel, setHilfsmittel] = useState(demoData ? demoData.hilfsmittel || [] : []);
   const [sammlungen, setSammlungen] = useState(demoData ? demoData.sammlungen || [] : []);
@@ -38,6 +65,7 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
         { data: tagRows },
         { data: toolRows },
         { data: collectionRows },
+        { data: imageRows },
       ] = await Promise.all([
         supabase
           .from("recipes")
@@ -46,8 +74,9 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
           .single(),
         supabase
           .from("recipe_ingredients")
-          .select("id, ingredient_id, menge, einheit, notiz, ingredients(name)")
-          .eq("recipe_id", recipeId),
+          .select(INGREDIENT_SELECT)
+          .eq("recipe_id", recipeId)
+          .order("reihenfolge", { ascending: true, nullsFirst: false }),
         supabase
           .from("recipe_steps")
           .select("*")
@@ -56,11 +85,22 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
         supabase.from("recipe_tags").select("tags(name)").eq("recipe_id", recipeId),
         supabase.from("recipe_tools").select("tools(name)").eq("recipe_id", recipeId),
         supabase.from("recipe_collections").select("collections(name)").eq("recipe_id", recipeId),
+        supabase
+          .from("recipe_images")
+          .select("id, url, reihenfolge")
+          .eq("recipe_id", recipeId)
+          .order("reihenfolge", { ascending: true }),
       ]);
 
       setRecipe(recipeRow || null);
       setIngredients(ingredientRows || []);
-      setSteps((stepRows || []).map((s) => s.text));
+      setSteps((stepRows || []).map((s) => ({ text: s.text, gruppe: s.gruppe })));
+      // Ältere Rezepte ohne Eintrag in recipe_images: Titelbild aus bild_url zeigen
+      const imgs = imageRows && imageRows.length > 0
+        ? imageRows
+        : recipeRow?.bild_url ? [{ id: "bild_url", url: recipeRow.bild_url }] : [];
+      setImages(imgs);
+      setActiveImage(0);
       setTags((tagRows || []).map((t) => t.tags?.name).filter(Boolean));
       setHilfsmittel((toolRows || []).map((t) => t.tools?.name).filter(Boolean));
       setSammlungen((collectionRows || []).map((c) => c.collections?.name).filter(Boolean));
@@ -99,14 +139,27 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
       // Neue, jetzt gültige Basiswerte nachladen (Zutaten sind jetzt der neue Ausgangspunkt).
       const { data: refreshed } = await supabase
         .from("recipe_ingredients")
-        .select("id, ingredient_id, menge, einheit, notiz, ingredients(name)")
-        .eq("recipe_id", recipeId);
+        .select(INGREDIENT_SELECT)
+        .eq("recipe_id", recipeId)
+        .order("reihenfolge", { ascending: true, nullsFirst: false });
       setIngredients(refreshed || []);
       setRecipe((r) => ({ ...r, portionen_standard: portionen }));
     } catch (err) {
       setError(err.message || "Speichern der Portionen fehlgeschlagen.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Favorit / „Möchte ich kochen“ per Klick umschalten (sofort anzeigen, bei Fehler zurück)
+  async function toggleFlag(field) {
+    if (isDemo || !recipe) return;
+    const value = !recipe[field];
+    setRecipe((r) => ({ ...r, [field]: value }));
+    const { error: flagError } = await supabase.from("recipes").update({ [field]: value }).eq("id", recipeId);
+    if (flagError) {
+      setRecipe((r) => ({ ...r, [field]: !value }));
+      setError(flagError.message);
     }
   }
 
@@ -128,11 +181,14 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
   if (loading) return <div className="screen">Lädt …</div>;
   if (!recipe) return <div className="screen">Rezept nicht gefunden.</div>;
 
-  const gesamtzeit = (recipe.zubereitungszeit_min || 0) + (recipe.kochzeit_min || 0);
+  const arbeitszeit = (recipe.zubereitungszeit_min || 0) + (recipe.kochzeit_min || 0);
   const categoryName = recipe.categories?.name;
-  const metaParts = [categoryName, recipe.schwierigkeit, gesamtzeit ? `${gesamtzeit} Min` : null].filter(
-    Boolean
-  );
+  const metaParts = [
+    categoryName,
+    recipe.schwierigkeit,
+    formatMinuten(arbeitszeit),
+    recipe.gesamtzeit_min ? `gesamt ${formatMinuten(recipe.gesamtzeit_min)}` : null,
+  ].filter(Boolean);
   const autorName = recipe.authors?.name;
   const kochbuchName = recipe.cookbooks?.name;
   const sourceParts = [
@@ -169,15 +225,46 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
 
       {error && <p className="input-helper-error form-error">{error}</p>}
 
-      {recipe.bild_url ? (
-        <img className="detail-hero" src={recipe.bild_url} alt={recipe.titel} />
-      ) : (
-        <div className="detail-hero" />
-      )}
+      <div className="detail-gallery">
+        {images.length > 0 ? (
+          <img className="detail-hero" src={images[activeImage]?.url} alt={recipe.titel} />
+        ) : (
+          <div className="detail-hero" />
+        )}
+        {images.length > 1 && (
+          <div className="detail-thumbs">
+            {/* Nur die anderen Bilder — das große wird nicht noch einmal als Vorschau gezeigt.
+                Klick auf eine Vorschau macht sie groß, das bisherige große rutscht in die Reihe. */}
+            {images.map((img, i) =>
+              i === activeImage ? null : (
+                <button
+                  key={img.id}
+                  type="button"
+                  className="detail-thumb"
+                  onClick={() => setActiveImage(i)}
+                  aria-label={`Bild ${i + 1} anzeigen`}
+                >
+                  <img src={img.url} alt="" />
+                </button>
+              )
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="detail-title-block">
         <h1>{recipe.titel}</h1>
         {metaParts.length > 0 && <p className="detail-meta">{metaParts.join("  ·  ")}</p>}
+        {!isDemo && (
+          <div className="tags-row detail-status">
+            <Tag label="♥ Favorit" selected={Boolean(recipe.favorit)} onClick={() => toggleFlag("favorit")} />
+            <Tag
+              label="Möchte ich kochen"
+              selected={Boolean(recipe.will_kochen)}
+              onClick={() => toggleFlag("will_kochen")}
+            />
+          </div>
+        )}
         {sourceParts.length > 0 && <p className="detail-source-info">{sourceParts.join("  ·  ")}</p>}
         {quelleDomain && (
           <p className="detail-source-link">
@@ -241,6 +328,7 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
           </button>
         </div>
       </div>
+      {recipe.portionen_text && <p className="detail-portionen-text">Laut Rezept: {recipe.portionen_text}</p>}
 
       {showShoppingModal && (
         <ShoppingListModal
@@ -262,7 +350,7 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
       {showCookMode && (
         <CookMode
           recipeTitel={recipe.titel}
-          steps={steps}
+          steps={steps.map((s) => s.text)}
           ingredients={ingredients.map((ing) => ({
             id: ing.id,
             name: ing.ingredients?.name || ing.name,
@@ -277,7 +365,14 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
       <div className="form-section">
         <h2 className="form-section-title">Zutaten (für {portionen} Portionen)</h2>
         <div className="detail-ingredient-list">
-          {ingredients.map((ing) => {
+          {withGroups(ingredients).map((ing, idx) => {
+            if (ing.isGroup) {
+              return (
+                <h3 className="detail-group-title" key={"g" + idx}>
+                  {ing.gruppe}
+                </h3>
+              );
+            }
             const name = ing.ingredients?.name || ing.name;
             const scaled = ing.menge != null ? round2(ing.menge * factor) : null;
             return (
@@ -302,14 +397,31 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
       <div className="form-section">
         <h2 className="form-section-title">Zubereitung</h2>
         <div className="detail-step-list">
-          {steps.map((text, i) => (
-            <div className="detail-step-row" key={i}>
-              <span className="step-number">{i + 1}</span>
-              <p>{text}</p>
-            </div>
-          ))}
+          {(() => {
+            // Nummern laufen über die Gruppen hinweg durch
+            let nr = 0;
+            return withGroups(steps).map((step, idx) =>
+              step.isGroup ? (
+                <h3 className="detail-group-title" key={"g" + idx}>
+                  {step.gruppe}
+                </h3>
+              ) : (
+                <div className="detail-step-row" key={idx}>
+                  <span className="step-number">{++nr}</span>
+                  <p>{step.text}</p>
+                </div>
+              )
+            );
+          })()}
         </div>
       </div>
+
+      {recipe.notizen && (
+        <div className="form-section">
+          <h2 className="form-section-title">Notizen</h2>
+          <p className="detail-notizen">{recipe.notizen}</p>
+        </div>
+      )}
 
       <div className="form-section">
         <h2 className="form-section-title">Einordnung</h2>
@@ -389,7 +501,8 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
         recipe.fett_g != null ||
         recipe.kohlenhydrate_g != null ||
         recipe.ballaststoffe_g != null ||
-        recipe.zucker_g != null) && (
+        recipe.zucker_g != null ||
+        recipe.naehrwerte_text) && (
         <div className="form-section">
           <h2 className="form-section-title">Nährwerte (pro Portion)</h2>
           <div className="naehrwerte-grid">
@@ -430,6 +543,9 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
               </div>
             )}
           </div>
+          {recipe.naehrwerte_text && (
+            <p className="detail-naehrwerte-text">Laut Quelle: {recipe.naehrwerte_text}</p>
+          )}
         </div>
       )}
     </div>

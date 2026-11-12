@@ -8,12 +8,38 @@ import { findOrCreateCookbook, findOrCreateCollection } from "../lib/findOrCreat
 import { findOrCreateTool } from "../lib/findOrCreateTool.js";
 import { getDomain } from "../lib/getDomain.js";
 import Tag from "../components/Tag.jsx";
+import Checkbox from "../components/Checkbox.jsx";
 import ImportRecipeModal from "../components/ImportRecipeModal.jsx";
 
 const SCHWIERIGKEITEN = ["einfach", "mittel", "schwer"];
 
 function emptyIngredient() {
   return { id: crypto.randomUUID(), menge: "", einheit: "", name: "", notiz: "" };
+}
+// Gruppen-Zeile („Für die Soße“) — steht in derselben Liste wie die Zutaten/Schritte;
+// beim Speichern bekommen alle folgenden Zeilen diese Gruppe.
+function emptyGroup() {
+  return { id: crypto.randomUUID(), isGroup: true, gruppe: "" };
+}
+function emptyStep(text = "") {
+  return { id: crypto.randomUUID(), text };
+}
+/** Aus gespeicherten Zeilen (mit Feld „gruppe“) wieder Gruppen-Zeilen dazwischen machen */
+function withGroupRows(rows) {
+  const out = [];
+  let current = "";
+  for (const row of rows) {
+    const g = (row.gruppe || "").trim();
+    if (g !== current) {
+      if (g) out.push({ id: crypto.randomUUID(), isGroup: true, gruppe: g });
+      current = g;
+    }
+    out.push(row);
+  }
+  return out;
+}
+function numOrNull(v) {
+  return v !== "" && v != null ? Number(v) : null;
 }
 
 // editRecipeId gesetzt → Bearbeiten-Modus (lädt bestehende Daten, aktualisiert statt anzulegen)
@@ -26,10 +52,16 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
   const [kochzeit, setKochzeit] = useState("");
   const [kategorie, setKategorie] = useState(""); // jetzt freies Textfeld, siehe Einordnung-Sektion
   const [schwierigkeit, setSchwierigkeit] = useState(null);
-  const [bildUrl, setBildUrl] = useState("");
+  const [gesamtzeit, setGesamtzeit] = useState("");
+  const [portionenText, setPortionenText] = useState("");
+  const [images, setImages] = useState([]); // Bild-Adressen; das erste ist das Titelbild
+  const [favorit, setFavorit] = useState(false);
+  const [willKochen, setWillKochen] = useState(false);
+  const [notizen, setNotizen] = useState("");
+  const [naehrwerteText, setNaehrwerteText] = useState("");
 
   const [ingredients, setIngredients] = useState([emptyIngredient()]);
-  const [steps, setSteps] = useState([""]);
+  const [steps, setSteps] = useState([emptyStep()]);
 
   // Für "Tab am Zeilenende → neue Zeile + Fokus springt automatisch rein"
   const mengeRefs = useRef({});
@@ -80,6 +112,7 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
         { data: tagRows },
         { data: toolRows },
         { data: collectionRows },
+        { data: imageRows },
       ] = await Promise.all([
         supabase
           .from("recipes")
@@ -88,8 +121,9 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
           .single(),
         supabase
           .from("recipe_ingredients")
-          .select("id, menge, einheit, notiz, ingredients(name)")
-          .eq("recipe_id", editRecipeId),
+          .select("id, menge, einheit, notiz, gruppe, reihenfolge, ingredients(name)")
+          .eq("recipe_id", editRecipeId)
+          .order("reihenfolge", { ascending: true, nullsFirst: false }),
         supabase
           .from("recipe_steps")
           .select("*")
@@ -101,6 +135,11 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
           .from("recipe_collections")
           .select("collections(name)")
           .eq("recipe_id", editRecipeId),
+        supabase
+          .from("recipe_images")
+          .select("url, reihenfolge")
+          .eq("recipe_id", editRecipeId)
+          .order("reihenfolge", { ascending: true }),
       ]);
 
       if (recipeRow) {
@@ -112,7 +151,15 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
         setKochzeit(recipeRow.kochzeit_min != null ? String(recipeRow.kochzeit_min) : "");
         setKategorie(recipeRow.categories?.name || "");
         setSchwierigkeit(recipeRow.schwierigkeit || null);
-        setBildUrl(recipeRow.bild_url || "");
+        setGesamtzeit(recipeRow.gesamtzeit_min != null ? String(recipeRow.gesamtzeit_min) : "");
+        setPortionenText(recipeRow.portionen_text || "");
+        setFavorit(Boolean(recipeRow.favorit));
+        setWillKochen(Boolean(recipeRow.will_kochen));
+        setNotizen(recipeRow.notizen || "");
+        setNaehrwerteText(recipeRow.naehrwerte_text || "");
+        // Bilder aus recipe_images; ältere Rezepte haben nur bild_url
+        if (imageRows && imageRows.length > 0) setImages(imageRows.map((i) => i.url));
+        else if (recipeRow.bild_url) setImages([recipeRow.bild_url]);
         setKochbuch(recipeRow.cookbooks?.name || "");
         setAutor(recipeRow.authors?.name || "");
         setQuelle(recipeRow.quelle || "");
@@ -125,16 +172,21 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
       }
       if (ingredientRows && ingredientRows.length > 0) {
         setIngredients(
-          ingredientRows.map((ing) => ({
-            id: ing.id,
-            menge: ing.menge != null ? String(ing.menge) : "",
-            einheit: ing.einheit || "",
-            name: ing.ingredients?.name || "",
-            notiz: ing.notiz || "",
-          }))
+          withGroupRows(
+            ingredientRows.map((ing) => ({
+              id: ing.id,
+              menge: ing.menge != null ? String(ing.menge) : "",
+              einheit: ing.einheit || "",
+              name: ing.ingredients?.name || "",
+              notiz: ing.notiz || "",
+              gruppe: ing.gruppe || "",
+            }))
+          )
         );
       }
-      if (stepRows && stepRows.length > 0) setSteps(stepRows.map((s) => s.text));
+      if (stepRows && stepRows.length > 0) {
+        setSteps(withGroupRows(stepRows.map((st) => ({ id: st.id, text: st.text, gruppe: st.gruppe || "" }))));
+      }
       if (tagRows) setTags(tagRows.map((t) => t.tags?.name).filter(Boolean));
       if (toolRows) setHilfsmittel(toolRows.map((t) => t.tools?.name).filter(Boolean));
       if (collectionRows) setSammlungen(collectionRows.map((c) => c.collections?.name).filter(Boolean));
@@ -182,6 +234,10 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
     setIngredients((list) => [...list, newIngredient]);
   }
 
+  function addIngredientGroup() {
+    setIngredients((list) => [...list, emptyGroup()]);
+  }
+
   function handleIngredientNotizKeyDown(e, ing) {
     if (e.key !== "Tab" || e.shiftKey) return; // nur "vorwärts"-Tab abfangen, Shift+Tab normal lassen
     const isLastRow = ingredients[ingredients.length - 1]?.id === ing.id;
@@ -196,15 +252,19 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
     setIngredients((list) => list.filter((ing) => ing.id !== id));
   }
 
-  function updateStep(index, value) {
-    setSteps((list) => list.map((s, i) => (i === index ? value : s)));
+  function updateStep(index, field, value) {
+    setSteps((list) => list.map((st, i) => (i === index ? { ...st, [field]: value } : st)));
   }
 
   function addStep() {
     setSteps((list) => {
       pendingStepFocusIndex.current = list.length; // Index der neuen (letzten) Zeile
-      return [...list, ""];
+      return [...list, emptyStep()];
     });
+  }
+
+  function addStepGroup() {
+    setSteps((list) => [...list, emptyGroup()]);
   }
 
   function handleStepKeyDown(e, index) {
@@ -284,7 +344,7 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
       );
     }
     if (importedRecipe.steps && importedRecipe.steps.length > 0) {
-      setSteps(importedRecipe.steps);
+      setSteps(importedRecipe.steps.map((text) => emptyStep(text)));
     }
     if (importedRecipe.tags && importedRecipe.tags.length > 0) {
       setTags(importedRecipe.tags);
@@ -306,20 +366,22 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
     setShowImportModal(false);
   }
 
+  // Mehrere Bilder auf einmal hochladen; sie werden hinten angehängt
   async function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = [...(e.target.files || [])];
+    if (files.length === 0) return;
     setUploading(true);
     setImageError(null);
     try {
-      const filePath = `${crypto.randomUUID()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("recipe-images")
-        .upload(filePath, file);
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from("recipe-images").getPublicUrl(filePath);
-      setBildUrl(data.publicUrl);
+      for (const file of files) {
+        const filePath = `${crypto.randomUUID()}-${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("recipe-images")
+          .upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from("recipe-images").getPublicUrl(filePath);
+        setImages((list) => [...list, data.publicUrl]);
+      }
     } catch (err) {
       setImageError(
         `Bild-Upload fehlgeschlagen: ${err.message || "unbekannter Fehler"}. ` +
@@ -329,6 +391,21 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
       setUploading(false);
       e.target.value = ""; // erlaubt erneute Auswahl derselben Datei
     }
+  }
+
+  // Bild um eine Position verschieben (-1 = nach links, +1 = nach rechts)
+  function moveImage(index, delta) {
+    setImages((list) => {
+      const target = index + delta;
+      if (target < 0 || target >= list.length) return list;
+      const next = [...list];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function removeImage(index) {
+    setImages((list) => list.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e) {
@@ -345,8 +422,15 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
       portionen_standard: Number(portionen) || 4,
       zubereitungszeit_min: zubereitungszeit ? Number(zubereitungszeit) : null,
       kochzeit_min: kochzeit ? Number(kochzeit) : null,
+      gesamtzeit_min: numOrNull(gesamtzeit),
+      portionen_text: portionenText.trim() || null,
       schwierigkeit,
-      bild_url: bildUrl.trim() || null,
+      // bild_url = Kopie des Titelbilds, damit Cards und Listen ohne Extra-Abfrage auskommen
+      bild_url: images[0] || null,
+      favorit,
+      will_kochen: willKochen,
+      notizen: notizen.trim() || null,
+      naehrwerte_text: naehrwerteText.trim() || null,
       quelle: quelle.trim() || null,
       kalorien_kcal: kalorien ? Number(kalorien) : null,
       eiweiss_g: eiweiss ? Number(eiweiss) : null,
@@ -377,6 +461,7 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
         // abzugleichen.
         await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipeId);
         await supabase.from("recipe_steps").delete().eq("recipe_id", recipeId);
+        await supabase.from("recipe_images").delete().eq("recipe_id", recipeId);
         await supabase.from("recipe_tags").delete().eq("recipe_id", recipeId);
         await supabase.from("recipe_tools").delete().eq("recipe_id", recipeId);
         await supabase.from("recipe_collections").delete().eq("recipe_id", recipeId);
@@ -390,27 +475,51 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
         recipeId = recipe.id;
       }
 
-      // Zutaten (jede Zeile: Zutat finden/anlegen, dann Verknüpfung speichern)
+      // Bilder (Reihenfolge 0 = Titelbild)
+      if (images.length > 0) {
+        const { error: imgError } = await supabase
+          .from("recipe_images")
+          .insert(images.map((url, i) => ({ recipe_id: recipeId, url, reihenfolge: i })));
+        if (imgError) throw imgError;
+      }
+
+      // Zutaten (jede Zeile: Zutat finden/anlegen, dann Verknüpfung speichern).
+      // Gruppen-Zeilen setzen die Gruppe für alle folgenden Zutaten.
+      let ingGruppe = null;
+      let ingNr = 0;
       for (const ing of ingredients) {
+        if (ing.isGroup) {
+          ingGruppe = ing.gruppe.trim() || null;
+          continue;
+        }
         if (!ing.name.trim()) continue;
         const ingredientId = await findOrCreateIngredient(ing.name);
         const { error: riError } = await supabase.from("recipe_ingredients").insert({
           recipe_id: recipeId,
           ingredient_id: ingredientId,
-          menge: ing.menge ? Number(ing.menge) : null,
+          menge: ing.menge ? Number(String(ing.menge).replace(",", ".")) : null,
           einheit: ing.einheit.trim() || null,
           notiz: ing.notiz.trim() || null,
+          gruppe: ingGruppe,
+          reihenfolge: ++ingNr,
         });
         if (riError) throw riError;
       }
 
-      // Zubereitungsschritte (Reihenfolge = Position in der Liste)
-      const nonEmptySteps = steps.filter((s) => s.trim());
-      for (let i = 0; i < nonEmptySteps.length; i++) {
+      // Zubereitungsschritte (Reihenfolge = Position in der Liste, Gruppen wie bei den Zutaten)
+      let stepGruppe = null;
+      let stepNr = 0;
+      for (const st of steps) {
+        if (st.isGroup) {
+          stepGruppe = st.gruppe.trim() || null;
+          continue;
+        }
+        if (!st.text.trim()) continue;
         const { error: stepError } = await supabase.from("recipe_steps").insert({
           recipe_id: recipeId,
-          reihenfolge: i + 1,
-          text: nonEmptySteps[i],
+          reihenfolge: ++stepNr,
+          text: st.text,
+          gruppe: stepGruppe,
         });
         if (stepError) throw stepError;
       }
@@ -538,16 +647,62 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
                 onChange={(e) => setKochzeit(e.target.value)}
               />
             </div>
+            <div className="input-group">
+              <label htmlFor="gesamtzeit">Gesamtzeit (Min)</label>
+              <input
+                id="gesamtzeit"
+                type="number"
+                min="0"
+                className="input-field"
+                value={gesamtzeit}
+                onChange={(e) => setGesamtzeit(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="input-group">
-            <label>Bild</label>
-            {bildUrl && (
-              <img className="image-preview" src={bildUrl} alt="Vorschau" />
+            <label htmlFor="portionen-text">Portionen-Text (optional)</label>
+            <input
+              id="portionen-text"
+              className="input-field"
+              value={portionenText}
+              onChange={(e) => setPortionenText(e.target.value)}
+              placeholder="z.B. 1 Kuchen (26 cm)"
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Bilder</label>
+            {images.length > 0 && (
+              <div className="form-images">
+                {images.map((url, i) => (
+                  <div className="form-image" key={url + i}>
+                    <img className={i === 0 ? "is-cover" : ""} src={url} alt={`Bild ${i + 1}`} />
+                    <div className="form-image-actions">
+                      {i === 0 ? (
+                        <span className="form-image-cover">Titelbild</span>
+                      ) : (
+                        <button type="button" onClick={() => moveImage(i, -1)} aria-label="Nach links">
+                          ←
+                        </button>
+                      )}
+                      {i > 0 && i < images.length - 1 && (
+                        <button type="button" onClick={() => moveImage(i, 1)} aria-label="Nach rechts">
+                          →
+                        </button>
+                      )}
+                      <button type="button" onClick={() => removeImage(i)} aria-label="Bild entfernen">
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
             <input
               type="file"
               accept="image/*"
+              multiple
               ref={fileInputRef}
               style={{ display: "none" }}
               onChange={handleFileChange}
@@ -558,9 +713,22 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
             >
-              {uploading ? "Lädt hoch …" : bildUrl ? "Anderes Bild wählen" : "Bild hochladen"}
+              {uploading ? "Lädt hoch …" : "Bilder hinzufügen"}
             </button>
+            <p className="field-hint">
+              Mehrere Bilder auf einmal auswählbar. Das erste Bild ist das Titelbild; mit ← → verschieben, ×
+              entfernt.
+            </p>
             {imageError && <p className="input-helper-error">{imageError}</p>}
+          </div>
+
+          <div className="form-checks">
+            <Checkbox checked={favorit} onChange={setFavorit}>
+              Favorit
+            </Checkbox>
+            <Checkbox checked={willKochen} onChange={setWillKochen}>
+              Möchte ich kochen
+            </Checkbox>
           </div>
         </div>
 
@@ -573,7 +741,27 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
             ))}
           </datalist>
           <div className="ingredient-rows">
-            {ingredients.map((ing) => (
+            {ingredients.map((ing) =>
+              ing.isGroup ? (
+                <div className="ingredient-row group-row" key={ing.id}>
+                  <span className="group-row-label">Gruppe</span>
+                  <input
+                    className="input-field mini-input-name"
+                    placeholder="z.B. Für die Soße"
+                    value={ing.gruppe}
+                    onChange={(e) => updateIngredient(ing.id, "gruppe", e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="remove-icon"
+                    onClick={() => removeIngredientRow(ing.id)}
+                    aria-label="Gruppe entfernen"
+                    tabIndex={-1}
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
               <div className="ingredient-row" key={ing.id}>
                 <input
                   ref={(el) => (mengeRefs.current[ing.id] = el)}
@@ -612,27 +800,58 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
                   ×
                 </button>
               </div>
-            ))}
+              )
+            )}
           </div>
-          <button type="button" className="btn btn-ghost" onClick={addIngredientRow}>
-            + Zutat hinzufügen
-          </button>
+          <div className="form-add-actions">
+            <button type="button" className="btn btn-ghost" onClick={addIngredientRow}>
+              + Zutat hinzufügen
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={addIngredientGroup}>
+              + Gruppe hinzufügen
+            </button>
+          </div>
         </div>
 
         {/* ===== Zubereitung ===== */}
         <div className="form-section">
           <h2 className="form-section-title">Zubereitung</h2>
           <div className="step-rows">
-            {steps.map((text, i) => (
-              <div className="step-row" key={i}>
-                <span className="step-number">{i + 1}</span>
+            {steps.map((st, i) => {
+              if (st.isGroup) {
+                return (
+                  <div className="step-row group-row" key={st.id}>
+                    <span className="group-row-label">Gruppe</span>
+                    <input
+                      className="input-field mini-input-name"
+                      placeholder="z.B. Teig"
+                      value={st.gruppe}
+                      onChange={(e) => updateStep(i, "gruppe", e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="remove-icon"
+                      onClick={() => removeStep(i)}
+                      aria-label="Gruppe entfernen"
+                      tabIndex={-1}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              }
+              // Nummer = wie viele echte Schritte bis hierher (Gruppen zählen nicht mit)
+              const nr = steps.slice(0, i + 1).filter((x) => !x.isGroup).length;
+              return (
+              <div className="step-row" key={st.id}>
+                <span className="step-number">{nr}</span>
                 <textarea
                   ref={(el) => (stepRefs.current[i] = el)}
                   className="input-field step-textarea"
-                  value={text}
-                  onChange={(e) => updateStep(i, e.target.value)}
+                  value={st.text}
+                  onChange={(e) => updateStep(i, "text", e.target.value)}
                   onKeyDown={(e) => handleStepKeyDown(e, i)}
-                  placeholder={`Schritt ${i + 1} …`}
+                  placeholder={`Schritt ${nr} …`}
                   rows={2}
                 />
                 <button
@@ -645,11 +864,30 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
                   ×
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
-          <button type="button" className="btn btn-ghost" onClick={addStep}>
-            + Schritt hinzufügen
-          </button>
+          <div className="form-add-actions">
+            <button type="button" className="btn btn-ghost" onClick={addStep}>
+              + Schritt hinzufügen
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={addStepGroup}>
+              + Gruppe hinzufügen
+            </button>
+          </div>
+        </div>
+
+        {/* ===== Notizen ===== */}
+        <div className="form-section">
+          <h2 className="form-section-title">Notizen</h2>
+          <textarea
+            className="input-field form-textarea"
+            rows={4}
+            value={notizen}
+            onChange={(e) => setNotizen(e.target.value)}
+            placeholder="z.B. Tipps, Varianten, was beim letzten Mal aufgefallen ist …"
+            aria-label="Notizen"
+          />
         </div>
 
         {/* ===== Einordnung ===== */}
@@ -860,6 +1098,16 @@ export default function NewRecipeForm({ editRecipeId, onCancel, onSaved }) {
                 onChange={(e) => setZucker(e.target.value)}
               />
             </div>
+          </div>
+          <div className="input-group">
+            <label htmlFor="naehrwerte-text">Nährwerte als Text (optional, z.B. aus einem Import)</label>
+            <textarea
+              id="naehrwerte-text"
+              className="input-field form-textarea"
+              rows={2}
+              value={naehrwerteText}
+              onChange={(e) => setNaehrwerteText(e.target.value)}
+            />
           </div>
           <p className="field-hint">Angaben pro Portion, manuell eingetragen.</p>
         </div>

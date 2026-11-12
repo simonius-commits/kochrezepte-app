@@ -1,13 +1,15 @@
+import { Heart } from "lucide-react";
 import Tag from "./Tag.jsx";
 import CardOptionsMenu from "./CardOptionsMenu.jsx";
 
 // onEdit/onDuplicate/onDelete sind optional — fehlen sie (z.B. bei Demo-Rezepten ohne
 // Datenbank), wird der "…"-Button nicht angezeigt.
 export default function RecipeCard({ recipe, onClick, onEdit, onDuplicate, onDelete }) {
-  const { titel, kategorie, zubereitungszeit_min, kochzeit_min, bild_url, tags = [] } =
+  const { titel, kategorie, zubereitungszeit_min, kochzeit_min, gesamtzeit_min, bild_url, favorit, tags = [] } =
     recipe;
 
-  const gesamtzeit = (zubereitungszeit_min || 0) + (kochzeit_min || 0);
+  // Gesamtzeit aus dem Rezept (inkl. Ruhezeit), sonst Zubereitung + Kochen
+  const gesamtzeit = gesamtzeit_min || (zubereitungszeit_min || 0) + (kochzeit_min || 0);
   const hasMenu = Boolean(onEdit && onDuplicate && onDelete);
 
   return (
@@ -17,6 +19,11 @@ export default function RecipeCard({ recipe, onClick, onEdit, onDuplicate, onDel
           <img className="recipe-card-image" src={bild_url} alt={titel} />
         ) : (
           <div className="recipe-card-image" />
+        )}
+        {favorit && (
+          <span className="recipe-card-favorit" title="Favorit" aria-label="Favorit">
+            <Heart size={14} fill="currentColor" />
+          </span>
         )}
         {gesamtzeit > 0 && (
           <span className="recipe-card-time-badge">{gesamtzeit} Min</span>

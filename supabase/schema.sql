@@ -1,5 +1,11 @@
 -- Kochrezepte App — Datenbank-Schema für Supabase
--- Ausführen in: Supabase Dashboard → SQL Editor → "New query" → einfügen → Run
+--
+-- ACHTUNG: Diese Datei ist das vollständige Datenmodell zum NACHLESEN und für eine NEUE, LEERE
+-- Datenbank. In einer bestehenden Datenbank NICHT komplett ausführen — dort bricht sie mit
+-- „policy … already exists“ ab. Für Änderungen an einer bestehenden Datenbank gibt es jeweils
+-- eine eigene Datei supabase/migration-….sql (die kann man gefahrlos ausführen).
+--
+-- Neue Datenbank: Supabase Dashboard → SQL Editor → "New query" → einfügen → Run
 
 -- Erweiterung für UUIDs (in Supabase meist schon aktiv)
 create extension if not exists "pgcrypto";
@@ -108,8 +114,16 @@ create table if not exists recipes (
   zubereitungszeit_min integer,
   kochzeit_min integer,
   schwierigkeit text check (schwierigkeit in ('einfach', 'mittel', 'schwer')),
-  bild_url text,
+  bild_url text,                -- Kopie des Titelbilds (= recipe_images mit reihenfolge 0), für Cards/Listen
   quelle text,                  -- Link, falls importiert
+  notizen text,                 -- eigene Notizen zum Rezept
+  naehrwerte_text text,         -- Nährwerte als Originaltext (z.B. aus Mela)
+  portionen_text text,          -- z.B. "1 Kuchen (26 cm)"; Zahl bleibt in portionen_standard
+  gesamtzeit_min integer,       -- inkl. Ruhe-/Backzeit
+  favorit boolean not null default false,
+  will_kochen boolean not null default false,  -- „Möchte ich kochen“
+  import_quelle text,           -- z.B. "mela"
+  import_id text,               -- Kennung in der Quell-App
   category_id uuid references categories(id),
   author_id uuid references authors(id),
   cookbook_id uuid references cookbooks(id),
@@ -144,7 +158,9 @@ create table if not exists recipe_ingredients (
   ingredient_id uuid references ingredients(id) not null,
   menge numeric,
   einheit text,                 -- freies Textfeld (kein fester Wertebereich, siehe Formular)
-  notiz text                    -- z.B. "gewürfelt", "optional"
+  notiz text,                   -- z.B. "gewürfelt", "optional"
+  reihenfolge integer,          -- Position in der Zutatenliste
+  gruppe text                   -- z.B. "Für die Soße"
 );
 
 -- Läuft serverseitig (SECURITY DEFINER, sieht also wirklich ALLE Verknüpfungen über alle
@@ -191,14 +207,31 @@ create table if not exists recipe_steps (
   id uuid primary key default gen_random_uuid(),
   recipe_id uuid references recipes(id) on delete cascade not null,
   reihenfolge integer not null,
-  text text not null
+  text text not null,
+  gruppe text                   -- z.B. "Teig"
 );
+
+-- ============ REZEPTBILDER (mehrere pro Rezept, v0.50) ============
+-- Reihenfolge 0 = Titelbild (auf der Card).
+create table if not exists recipe_images (
+  id uuid primary key default gen_random_uuid(),
+  recipe_id uuid references recipes(id) on delete cascade not null,
+  url text not null,
+  reihenfolge integer not null default 0,
+  created_at timestamptz default now()
+);
+
+-- Dasselbe Rezept aus derselben Quelle (z.B. Mela) höchstens einmal pro Person
+create unique index if not exists recipes_import_unique
+  on recipes (owner_id, import_quelle, import_id)
+  where import_id is not null;
 
 -- ============ Row Level Security (jeder sieht nur eigene Rezepte) ============
 alter table recipes enable row level security;
 alter table recipe_tags enable row level security;
 alter table recipe_ingredients enable row level security;
 alter table recipe_steps enable row level security;
+alter table recipe_images enable row level security;
 
 create policy "Eigene Rezepte lesen" on recipes
   for select using (auth.uid() = owner_id);
@@ -222,6 +255,11 @@ create policy "Zutaten-Verknüpfung über eigenes Rezept" on recipe_ingredients
 create policy "Schritte über eigenes Rezept" on recipe_steps
   for all using (
     exists (select 1 from recipes where recipes.id = recipe_steps.recipe_id and recipes.owner_id = auth.uid())
+  );
+
+create policy "Bilder über eigenes Rezept" on recipe_images
+  for all using (
+    exists (select 1 from recipes where recipes.id = recipe_images.recipe_id and recipes.owner_id = auth.uid())
   );
 
 -- Zutaten-Stammdaten sind bewusst NICHT durch RLS eingeschränkt —

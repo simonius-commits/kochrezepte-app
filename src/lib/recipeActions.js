@@ -7,24 +7,28 @@ export async function deleteRecipe(recipeId) {
   if (error) throw error;
 }
 
-// Legt eine vollständige Kopie eines Rezepts an — inkl. Zutaten, Schritten, Tags, Hilfsmitteln,
-// Sammlungen und Nährwerten — und gibt die ID der Kopie zurück.
+// Legt eine vollständige Kopie eines Rezepts an — inkl. Bildern, Zutaten, Schritten, Tags,
+// Hilfsmitteln, Sammlungen und Nährwerten — und gibt die ID der Kopie zurück.
+// Die Bilddateien selbst werden nicht kopiert, beide Rezepte zeigen auf dieselben Dateien.
 export async function duplicateRecipe(recipeId) {
-  const [recipeRes, ingredientsRes, stepsRes, tagsRes, toolsRes, collectionsRes] = await Promise.all([
+  const [recipeRes, ingredientsRes, stepsRes, tagsRes, toolsRes, collectionsRes, imagesRes] = await Promise.all([
     supabase.from("recipes").select("*").eq("id", recipeId).single(),
     supabase.from("recipe_ingredients").select("*").eq("recipe_id", recipeId),
     supabase.from("recipe_steps").select("*").eq("recipe_id", recipeId),
     supabase.from("recipe_tags").select("tag_id").eq("recipe_id", recipeId),
     supabase.from("recipe_tools").select("tool_id").eq("recipe_id", recipeId),
     supabase.from("recipe_collections").select("collection_id").eq("recipe_id", recipeId),
+    supabase.from("recipe_images").select("url, reihenfolge").eq("recipe_id", recipeId),
   ]);
-  const firstError = [recipeRes, ingredientsRes, stepsRes, tagsRes, toolsRes, collectionsRes].find(
+  const firstError = [recipeRes, ingredientsRes, stepsRes, tagsRes, toolsRes, collectionsRes, imagesRes].find(
     (r) => r.error
   )?.error;
   if (firstError) throw firstError;
 
-  // id, owner_id und created_at vergibt die Datenbank für die Kopie neu.
-  const { id, owner_id, created_at, ...recipeFields } = recipeRes.data;
+  // id, owner_id und created_at vergibt die Datenbank für die Kopie neu. Die Import-Kennung
+  // (z.B. aus Mela) bleibt beim Original, sonst gäbe es das importierte Rezept „zweimal“.
+  // eslint-disable-next-line no-unused-vars
+  const { id, owner_id, created_at, import_quelle, import_id, ...recipeFields } = recipeRes.data;
   const { data: copy, error: insertError } = await supabase
     .from("recipes")
     .insert({ ...recipeFields, titel: `${recipeFields.titel} (Kopie)` })
@@ -42,6 +46,7 @@ export async function duplicateRecipe(recipeId) {
     ["recipe_tags", linkRows(tagsRes.data)],
     ["recipe_tools", linkRows(toolsRes.data)],
     ["recipe_collections", linkRows(collectionsRes.data)],
+    ["recipe_images", linkRows(imagesRes.data)],
   ].filter(([, rows]) => rows.length > 0);
 
   const results = await Promise.all(inserts.map(([table, rows]) => supabase.from(table).insert(rows)));
