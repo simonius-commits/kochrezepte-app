@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 import Tag from "../components/Tag.jsx";
+import { useBeiRueckkehr } from "../lib/seitenAktivierung.js";
 
 export default function UsersPage({ currentUserId }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
-    setLoading(true);
+  // still = beim Zurückkehren neu laden, ohne „Lädt …“ (siehe seitenAktivierung.js)
+  async function load({ still = false } = {}) {
+    if (!still) setLoading(true);
     const { data } = await supabase
       .from("profiles")
       .select("id, email, is_admin")
@@ -19,6 +21,7 @@ export default function UsersPage({ currentUserId }) {
   useEffect(() => {
     load();
   }, []);
+  useBeiRueckkehr(() => load({ still: true }));
 
   async function toggleAdmin(user) {
     const { error } = await supabase.from("profiles").update({ is_admin: !user.is_admin }).eq("id", user.id);

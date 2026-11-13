@@ -31,8 +31,7 @@ export default function MobileNav({ activeView, onNavigate, onSignOut, isAdmin }
 
   function gehe(key) {
     setMehrOffen(false);
-    onNavigate(key);
-    window.scrollTo(0, 0);
+    onNavigate(key); // Scroll-Position merkt sich App.jsx pro Bereich
   }
 
   const mehrAktiv = mehrOffen || !TAB_KEYS.includes(activeView);

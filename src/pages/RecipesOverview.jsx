@@ -10,6 +10,11 @@ import NewRecipeForm from "./NewRecipeForm.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import { DEMO_RECIPE_DETAILS } from "../lib/demoRecipeDetails.js";
 import { bestaetigen } from "../lib/bestaetigen.js";
+import { useBeiRueckkehr } from "../lib/seitenAktivierung.js";
+import { useGemerkteAnsicht } from "../lib/gemerkteAnsicht.js";
+import SortSelect from "../components/SortSelect.jsx";
+import { REZEPT_SORTIERUNGEN, keys, sortiereRezepte } from "../lib/sortierung.js";
+import { ladeAlle } from "../lib/ladeAlle.js";
 
 // Demo-Daten — werden nur angezeigt, solange die Supabase-Tabelle "recipes" leer ist.
 // So kannst du die App sofort sehen, bevor Supabase eingerichtet ist.
@@ -52,7 +57,10 @@ export default function RecipesOverview() {
   const [showForm, setShowForm] = useState(false);
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [editingRecipeId, setEditingRecipeId] = useState(null);
-  const [view, setView] = useState("cards");
+  // Ansicht (Cards | Liste | Tabelle) wird dauerhaft gemerkt, bis man sie wechselt
+  const [view, setView] = useGemerkteAnsicht("ansicht:rezepte", "cards", ["cards", "list", "table"]);
+  // Sortierung wird dauerhaft gemerkt, bis man sie wechselt
+  const [sort, setSort] = useGemerkteAnsicht("sortierung:rezepte", "neueste", keys(REZEPT_SORTIERUNGEN));
 
   async function loadRecipes() {
     if (!isSupabaseConfigured) {
@@ -61,16 +69,26 @@ export default function RecipesOverview() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("recipes")
-      .select("*, recipe_tags(tags(name)), categories(name)")
-      .order("created_at", { ascending: false });
+    // Seitenweise laden (Supabase liefert pro Abfrage höchstens 1000 Zeilen).
+    // recipe_ingredients(count) / recipe_steps(count) = Anzahl für „Wenig Aufwand zuerst“.
+    let data = null;
+    let error = null;
+    try {
+      data = await ladeAlle(
+        "recipes",
+        "*, recipe_tags(tags(name)), categories(name), recipe_ingredients(count), recipe_steps(count)"
+      );
+    } catch (err) {
+      error = err;
+    }
 
     if (!error && data && data.length > 0) {
       const mapped = data.map((r) => ({
         ...r,
         kategorie: r.categories?.name || null,
         tags: (r.recipe_tags || []).map((t) => t.tags?.name).filter(Boolean),
+        anzahlZutaten: r.recipe_ingredients?.[0]?.count || 0,
+        anzahlSchritte: r.recipe_steps?.[0]?.count || 0,
       }));
       setRecipes(mapped);
       setUsingDemoData(false);
@@ -82,6 +100,8 @@ export default function RecipesOverview() {
   useEffect(() => {
     loadRecipes();
   }, []);
+  // Beim Zurückkehren zu „Rezepte“ still neu laden (Übersicht lädt ohnehin ohne „Lädt …“)
+  useBeiRueckkehr(loadRecipes);
 
   // Kopie anlegen und direkt im Bearbeiten-Formular öffnen.
   async function handleDuplicate(recipe) {
@@ -110,12 +130,13 @@ export default function RecipesOverview() {
   }, [recipes]);
 
   const filtered = useMemo(() => {
-    return recipes.filter((r) => {
+    const treffer = recipes.filter((r) => {
       const matchesFilter = activeFilter === "Alle" || r.kategorie === activeFilter;
       const matchesSearch = r.titel.toLowerCase().includes(search.toLowerCase());
       return matchesFilter && matchesSearch;
     });
-  }, [recipes, activeFilter, search]);
+    return sortiereRezepte(treffer, sort);
+  }, [recipes, activeFilter, search, sort]);
 
   if (editingRecipeId) {
     return (
@@ -191,7 +212,10 @@ export default function RecipesOverview() {
             />
           ))}
         </div>
-        <ViewSwitcher view={view} onChange={setView} />
+        <div className="sort-view-group">
+          <SortSelect value={sort} onChange={setSort} options={REZEPT_SORTIERUNGEN} />
+          <ViewSwitcher view={view} onChange={setView} />
+        </div>
       </div>
 
       {usingDemoData && !loading && (

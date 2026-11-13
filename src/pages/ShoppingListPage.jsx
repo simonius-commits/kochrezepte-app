@@ -9,6 +9,8 @@ import {
   removeRecipeFromShoppingList,
   setShoppingItemsDone,
 } from "../lib/shoppingList.js";
+import { useBeiRueckkehr } from "../lib/seitenAktivierung.js";
+import { useGemerkteAnsicht } from "../lib/gemerkteAnsicht.js";
 
 /**
  * Seite „Einkaufen“ (Figma: Screens – User → Einkaufsliste).
@@ -78,8 +80,9 @@ function aggregateByIngredient(entries) {
 
 export default function ShoppingListPage() {
   const [entries, setEntries] = useState([]);
-  const [tab, setTab] = useState("rezepte"); // "rezepte" | "zutaten"
-  const [sort, setSort] = useState("kategorie"); // "kategorie" | "alphabetisch"
+  // Tab und Sortierung werden dauerhaft gemerkt, bis man sie wechselt
+  const [tab, setTab] = useGemerkteAnsicht("einkaufen:tab", "rezepte", ["rezepte", "zutaten"]);
+  const [sort, setSort] = useGemerkteAnsicht("einkaufen:sortierung", "kategorie", ["kategorie", "alphabetisch"]);
   const [collapsed, setCollapsed] = useState(new Set()); // Rezepte UND Kategorien; standardmäßig alles offen
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -90,6 +93,13 @@ export default function ShoppingListPage() {
       .catch((err) => setError(err.message || "Einkaufsliste konnte nicht geladen werden."))
       .finally(() => setLoading(false));
   }, []);
+  // Zurück zu „Einkaufen“ (z.B. nachdem ein Rezept hinzugefügt wurde): still neu laden.
+  // Tab, Sortierung und auf-/zugeklappte Gruppen bleiben erhalten.
+  useBeiRueckkehr(() => {
+    loadShoppingList()
+      .then(setEntries)
+      .catch(() => {});
+  });
 
   const ingredientRows = useMemo(() => aggregateByIngredient(entries), [entries]);
 

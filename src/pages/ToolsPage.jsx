@@ -8,6 +8,11 @@ import SimpleList from "../components/SimpleList.jsx";
 import SimpleTable from "../components/SimpleTable.jsx";
 import FilteredRecipesPage from "./FilteredRecipesPage.jsx";
 import { bestaetigen } from "../lib/bestaetigen.js";
+import { useBeiRueckkehr } from "../lib/seitenAktivierung.js";
+import { useGemerkteAnsicht } from "../lib/gemerkteAnsicht.js";
+import SortSelect from "../components/SortSelect.jsx";
+import { LISTEN_SORTIERUNGEN, keys, sortiereListe } from "../lib/sortierung.js";
+import { ladeAlle, zaehleAlle } from "../lib/ladeAlle.js";
 
 export default function ToolsPage() {
   const [tools, setTools] = useState([]);
@@ -15,21 +20,21 @@ export default function ToolsPage() {
   const [search, setSearch] = useState("");
   const [openTool, setOpenTool] = useState(null);
   const [mergingTool, setMergingTool] = useState(null);
-  const [view, setView] = useState("cards");
+  // Ansicht (Cards | Liste | Tabelle) wird dauerhaft gemerkt, bis man sie wechselt
+  const [view, setView] = useGemerkteAnsicht("ansicht:hilfsmittel", "cards", ["cards", "list", "table"]);
+  // Sortierung wird dauerhaft gemerkt, bis man sie wechselt
+  const [sort, setSort] = useGemerkteAnsicht("sortierung:hilfsmittel", "az", keys(LISTEN_SORTIERUNGEN));
 
-  async function load() {
-    setLoading(true);
+  // still = beim Zurückkehren neu laden, ohne „Lädt …“ (siehe seitenAktivierung.js)
+  async function load({ still = false } = {}) {
+    if (!still) setLoading(true);
     // Hilfsmittel sind ein geteilter Pool (siehe Datenmodell) — die Liste zeigt daher alle,
     // aber die Rezept-Anzahl bezieht sich (durch Row Level Security) nur auf eigene Rezepte.
-    const [{ data: toolRows }, { data: linkRows }] = await Promise.all([
-      supabase.from("tools").select("id, name").order("name", { ascending: true }),
-      supabase.from("recipe_tools").select("tool_id"),
+    // Alle Zeilen laden (seitenweise, Supabase liefert sonst nur 1000 Zeilen)
+    const [toolRows, counts] = await Promise.all([
+      ladeAlle("tools", "id, name, created_at"),
+      zaehleAlle("recipe_tools", "tool_id", ["recipe_id", "tool_id"]),
     ]);
-
-    const counts = {};
-    (linkRows || []).forEach((r) => {
-      counts[r.tool_id] = (counts[r.tool_id] || 0) + 1;
-    });
 
     setTools((toolRows || []).map((t) => ({ ...t, count: counts[t.id] || 0 })));
     setLoading(false);
@@ -38,6 +43,7 @@ export default function ToolsPage() {
   useEffect(() => {
     load();
   }, []);
+  useBeiRueckkehr(() => load({ still: true }));
 
   async function handleCreate(name) {
     const { error } = await supabase.from("tools").insert({ name });
@@ -69,8 +75,8 @@ export default function ToolsPage() {
   }
 
   const filtered = useMemo(
-    () => tools.filter((t) => t.name.toLowerCase().includes(search.toLowerCase())),
-    [tools, search]
+    () => sortiereListe(tools.filter((t) => t.name.toLowerCase().includes(search.toLowerCase())), sort),
+    [tools, search, sort]
   );
 
   if (openTool) {
@@ -106,7 +112,10 @@ export default function ToolsPage() {
       </div>
 
       <div className="view-switcher-bar">
-        <ViewSwitcher view={view} onChange={setView} />
+        <div className="sort-view-group">
+          <SortSelect value={sort} onChange={setSort} options={LISTEN_SORTIERUNGEN} />
+          <ViewSwitcher view={view} onChange={setView} />
+        </div>
       </div>
 
       {/* Vorschlagsliste für das Ziel-Feld im Zusammenführen-Dialog */}

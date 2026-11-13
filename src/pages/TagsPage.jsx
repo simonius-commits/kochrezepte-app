@@ -8,23 +8,28 @@ import SimpleList from "../components/SimpleList.jsx";
 import SimpleTable from "../components/SimpleTable.jsx";
 import FilteredRecipesPage from "./FilteredRecipesPage.jsx";
 import { bestaetigen } from "../lib/bestaetigen.js";
+import { useBeiRueckkehr } from "../lib/seitenAktivierung.js";
+import { useGemerkteAnsicht } from "../lib/gemerkteAnsicht.js";
+import SortSelect from "../components/SortSelect.jsx";
+import { LISTEN_SORTIERUNGEN, keys, sortiereListe } from "../lib/sortierung.js";
+import { ladeAlle, zaehleAlle } from "../lib/ladeAlle.js";
 
 export default function TagsPage() {
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [openTag, setOpenTag] = useState(null);
-  const [view, setView] = useState("cards");
+  // Ansicht (Cards | Liste | Tabelle) wird dauerhaft gemerkt, bis man sie wechselt
+  const [view, setView] = useGemerkteAnsicht("ansicht:tags", "cards", ["cards", "list", "table"]);
+  // Sortierung wird dauerhaft gemerkt, bis man sie wechselt
+  const [sort, setSort] = useGemerkteAnsicht("sortierung:tags", "az", keys(LISTEN_SORTIERUNGEN));
 
-  async function load() {
-    setLoading(true);
-    const { data: tagRows } = await supabase.from("tags").select("id, name").order("name", { ascending: true });
-    const { data: linkRows } = await supabase.from("recipe_tags").select("tag_id");
-
-    const counts = {};
-    (linkRows || []).forEach((r) => {
-      counts[r.tag_id] = (counts[r.tag_id] || 0) + 1;
-    });
+  // still = beim Zurückkehren neu laden, ohne „Lädt …“ (siehe seitenAktivierung.js)
+  async function load({ still = false } = {}) {
+    if (!still) setLoading(true);
+    const { data: tagRows } = await supabase.from("tags").select("id, name, created_at").order("name", { ascending: true });
+    // Alle Zuordnungen zählen (seitenweise, Supabase liefert sonst nur 1000 Zeilen)
+    const counts = await zaehleAlle("recipe_tags", "tag_id", ["recipe_id", "tag_id"]);
 
     setTags((tagRows || []).map((t) => ({ ...t, count: counts[t.id] || 0 })));
     setLoading(false);
@@ -33,6 +38,7 @@ export default function TagsPage() {
   useEffect(() => {
     load();
   }, []);
+  useBeiRueckkehr(() => load({ still: true }));
 
   async function handleCreate(name) {
     await supabase.from("tags").insert({ name });
@@ -59,8 +65,8 @@ export default function TagsPage() {
   }
 
   const filtered = useMemo(
-    () => tags.filter((t) => t.name.toLowerCase().includes(search.toLowerCase())),
-    [tags, search]
+    () => sortiereListe(tags.filter((t) => t.name.toLowerCase().includes(search.toLowerCase())), sort),
+    [tags, search, sort]
   );
 
   if (openTag) {
@@ -96,7 +102,10 @@ export default function TagsPage() {
       </div>
 
       <div className="view-switcher-bar">
-        <ViewSwitcher view={view} onChange={setView} />
+        <div className="sort-view-group">
+          <SortSelect value={sort} onChange={setSort} options={LISTEN_SORTIERUNGEN} />
+          <ViewSwitcher view={view} onChange={setView} />
+        </div>
       </div>
 
       {loading ? (

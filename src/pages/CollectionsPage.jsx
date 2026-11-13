@@ -8,26 +8,31 @@ import SimpleList from "../components/SimpleList.jsx";
 import SimpleTable from "../components/SimpleTable.jsx";
 import FilteredRecipesPage from "./FilteredRecipesPage.jsx";
 import { bestaetigen } from "../lib/bestaetigen.js";
+import { useBeiRueckkehr } from "../lib/seitenAktivierung.js";
+import { useGemerkteAnsicht } from "../lib/gemerkteAnsicht.js";
+import SortSelect from "../components/SortSelect.jsx";
+import { LISTEN_SORTIERUNGEN, keys, sortiereListe } from "../lib/sortierung.js";
+import { ladeAlle, zaehleAlle } from "../lib/ladeAlle.js";
 
 export default function CollectionsPage() {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [openCollection, setOpenCollection] = useState(null);
-  const [view, setView] = useState("cards");
+  // Ansicht (Cards | Liste | Tabelle) wird dauerhaft gemerkt, bis man sie wechselt
+  const [view, setView] = useGemerkteAnsicht("ansicht:sammlungen", "cards", ["cards", "list", "table"]);
+  // Sortierung wird dauerhaft gemerkt, bis man sie wechselt
+  const [sort, setSort] = useGemerkteAnsicht("sortierung:sammlungen", "neueste", keys(LISTEN_SORTIERUNGEN));
 
-  async function load() {
-    setLoading(true);
+  // still = beim Zurückkehren neu laden, ohne „Lädt …“ (siehe seitenAktivierung.js)
+  async function load({ still = false } = {}) {
+    if (!still) setLoading(true);
     const { data: collectionRows } = await supabase
       .from("collections")
-      .select("id, name")
+      .select("id, name, created_at")
       .order("created_at", { ascending: false });
-    const { data: linkRows } = await supabase.from("recipe_collections").select("collection_id");
-
-    const counts = {};
-    (linkRows || []).forEach((r) => {
-      counts[r.collection_id] = (counts[r.collection_id] || 0) + 1;
-    });
+    // Alle Zuordnungen zählen (seitenweise, Supabase liefert sonst nur 1000 Zeilen)
+    const counts = await zaehleAlle("recipe_collections", "collection_id", ["recipe_id", "collection_id"]);
 
     setCollections((collectionRows || []).map((c) => ({ ...c, count: counts[c.id] || 0 })));
     setLoading(false);
@@ -36,6 +41,7 @@ export default function CollectionsPage() {
   useEffect(() => {
     load();
   }, []);
+  useBeiRueckkehr(() => load({ still: true }));
 
   async function handleCreate(name) {
     await supabase.from("collections").insert({ name });
@@ -62,8 +68,8 @@ export default function CollectionsPage() {
   }
 
   const filtered = useMemo(
-    () => collections.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())),
-    [collections, search]
+    () => sortiereListe(collections.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())), sort),
+    [collections, search, sort]
   );
 
   if (openCollection) {
@@ -99,7 +105,10 @@ export default function CollectionsPage() {
       </div>
 
       <div className="view-switcher-bar">
-        <ViewSwitcher view={view} onChange={setView} />
+        <div className="sort-view-group">
+          <SortSelect value={sort} onChange={setSort} options={LISTEN_SORTIERUNGEN} />
+          <ViewSwitcher view={view} onChange={setView} />
+        </div>
       </div>
 
       {loading ? (

@@ -5,6 +5,7 @@ import { duplicateRecipe, deleteRecipe } from "../lib/recipeActions.js";
 import RecipeDetail from "./RecipeDetail.jsx";
 import NewRecipeForm from "./NewRecipeForm.jsx";
 import { bestaetigen } from "../lib/bestaetigen.js";
+import { useBeiRueckkehr } from "../lib/seitenAktivierung.js";
 
 function mapRecipe(r) {
   return {
@@ -82,8 +83,9 @@ export default function FilteredRecipesPage({ filterType, filterId, filterName, 
   const [ingredientError, setIngredientError] = useState(null);
   const [ingredientSaved, setIngredientSaved] = useState(false);
 
-  async function load() {
-    setLoading(true);
+  // still = beim Zurückkehren neu laden, ohne „Lädt …“ (siehe seitenAktivierung.js)
+  async function load({ still = false } = {}) {
+    if (!still) setLoading(true);
     const rows = await fetchByFilter(filterType, filterId);
     setRecipes(rows.map(mapRecipe));
     setLoading(false);
@@ -92,6 +94,7 @@ export default function FilteredRecipesPage({ filterType, filterId, filterName, 
   useEffect(() => {
     load();
   }, [filterType, filterId]);
+  useBeiRueckkehr(() => load({ still: true }));
 
   // Kopie anlegen und direkt im Bearbeiten-Formular öffnen.
   async function handleDuplicate(recipe) {

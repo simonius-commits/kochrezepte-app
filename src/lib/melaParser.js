@@ -190,6 +190,77 @@ export function pruefeUeberschrift(zeile, { grossIstUeberschrift = true } = {}) 
   return null;
 }
 
+// --- Sammelzeilen aufteilen -------------------------------------------------------------------
+// Manche Rezepte (v.a. aus Webseiten kopiert) haben alle Zutaten in EINER Zeile:
+// „750 g weißer, geschälter Spargel, 300 g Blätterteig (TK), 100 ml Weißwein, Basilikum, Salz“.
+const MENGE_ANFANG = /^(?:\d|[½⅓⅔¼¾⅕⅛]|je\s)/i;
+
+/** An Kommas teilen, aber nicht innerhalb von Klammern */
+function teileAnKommas(text) {
+  const teile = [];
+  let tiefe = 0;
+  let aktuell = "";
+  for (const zeichen of text) {
+    if (zeichen === "(") tiefe++;
+    if (zeichen === ")") tiefe = Math.max(0, tiefe - 1);
+    if (zeichen === "," && tiefe === 0) {
+      teile.push(aktuell.trim());
+      aktuell = "";
+    } else aktuell += zeichen;
+  }
+  teile.push(aktuell.trim());
+  return teile.filter(Boolean);
+}
+
+/**
+ * Eine Zutatenzeile mit mehreren Zutaten in einzelne Zeilen teilen. Nur wenn mindestens drei
+ * Teile mit einer Menge beginnen (sonst ist das Komma eine Notiz: „Zwiebel, gewürfelt“).
+ * „750 g weißer, geschälter Spargel“ bleibt zusammen: Endet der vorige Teil klein geschrieben
+ * (Adjektiv) und beginnt der nächste klein, gehören sie zusammen.
+ */
+export function teileZutatenzeile(zeile) {
+  if (/alternativ/i.test(zeile)) return [zeile];
+  const teile = teileAnKommas(zeile);
+  if (teile.filter((t) => MENGE_ANFANG.test(t)).length < 3) return [zeile];
+  const out = [];
+  for (const teil of teile) {
+    const vorher = out[out.length - 1];
+    const letztesWort = vorher?.split(/\s+/).pop() || "";
+    if (vorher && !MENGE_ANFANG.test(teil) && /^[a-zäöüß]/.test(teil) && /^[a-zäöüß]/.test(letztesWort)) {
+      out[out.length - 1] = `${vorher} ${teil}`;
+    } else out.push(teil);
+  }
+  return out;
+}
+
+// Abkürzungen, nach denen ein Punkt KEIN Satzende ist
+const ABKUERZUNGEN = /(?:\b(?:ca|z|B|bzw|evtl|ggf|usw|etc|inkl|max|min|Min|Std|Sek|EL|TL|Msp|Pck|Stk|gr|geh|ital|franz|engl|vgl|Nr|s|u|o|d)\.)$/;
+
+/**
+ * Einen langen Absatz (ganze Anleitung in einem Schritt) an den Satzenden in einzelne
+ * Schritte teilen. Kurze Absätze bleiben unverändert.
+ */
+export function teileSchritt(text) {
+  if (text.length <= 250) return [text];
+  // Inline-Nummerierung „1. … 2. …“ → an den Nummern trennen
+  const nummeriert = text.split(/\s+(?=\d{1,2}[.)]\s+[A-ZÄÖÜ])/);
+  const saetze = [];
+  for (const roherBlock of nummeriert) {
+    const block = roherBlock.replace(/^\d{1,2}[.)]\s+/, ""); // „1. “ vorne weg
+    let aktuell = "";
+    const teile = block.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ„"])/);
+    for (const teil of teile) {
+      aktuell = aktuell ? `${aktuell} ${teil}` : teil;
+      if (!ABKUERZUNGEN.test(aktuell)) {
+        saetze.push(aktuell.trim());
+        aktuell = "";
+      }
+    }
+    if (aktuell) saetze.push(aktuell.trim());
+  }
+  return saetze.map((s) => s.replace(/^\d{1,2}[.)]\s+/, "")).filter(Boolean);
+}
+
 /**
  * Zutaten-Text → Liste { zeile, gruppe }. „#“-Zeilen und erkannte Überschriften setzen die
  * Gruppe; reine Überschriften („ZUTATEN FÜR 4 PERSONEN“) fallen weg — die Portionsangabe
@@ -199,7 +270,11 @@ function zutatenMitGruppen(text) {
   const out = [];
   let gruppe = null;
   let portionen = null;
-  const alleZeilen = String(text || "").split(/\r?\n/).map((z) => z.trim()).filter(Boolean);
+  const alleZeilen = String(text || "")
+    .split(/\r?\n/)
+    .map((z) => z.trim())
+    .filter(Boolean)
+    .flatMap((z) => (z.startsWith("#") ? [z] : teileZutatenzeile(z)));
   // Wie viele Zeilen enthalten Kleinbuchstaben? Ist fast alles groß geschrieben, sind
   // Großbuchstaben kein Zeichen für eine Überschrift.
   const normaleZeilen = alleZeilen.filter((z) => /[a-zäöüß]/.test(z)).length;
@@ -404,10 +479,18 @@ export function melaZuRezept(json) {
       if (zusatzNotiz) z.notiz = [zusatzNotiz, z.notiz].filter(Boolean).join(", ");
       return { ...z, gruppe };
     }),
-    schritte: zeilenMitGruppen(json.instructions).map(({ zeile, gruppe }) => ({
-      text: zeile.replace(/^\d+[.)]\s+/, ""), // "1. Ofen vorheizen" → Nummer machen wir selbst
-      gruppe,
-    })),
+    schritte: (() => {
+      const zeilen = zeilenMitGruppen(json.instructions);
+      // Ganze Anleitung in EINEM langen Absatz? → an den Satzenden in Schritte teilen
+      const quelle =
+        zeilen.length === 1
+          ? teileSchritt(zeilen[0].zeile).map((zeile) => ({ zeile, gruppe: zeilen[0].gruppe }))
+          : zeilen;
+      return quelle.map(({ zeile, gruppe }) => ({
+        text: zeile.replace(/^\d+[.)]\s+/, ""), // "1. Ofen vorheizen" → Nummer machen wir selbst
+        gruppe,
+      }));
+    })(),
     bilder: (Array.isArray(json.images) ? json.images : []).filter((b) => typeof b === "string" && b.length > 0),
     favorit: Boolean(json.favorite),
     willKochen: Boolean(json.wantToCook),

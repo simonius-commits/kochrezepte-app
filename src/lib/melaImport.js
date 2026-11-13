@@ -9,25 +9,11 @@
 // Speicher gehalten (Name → ID); pro Rezept werden fehlende Zutaten/Tags gesammelt angelegt
 // und alle Zeilen eines Rezepts in einem Rutsch gespeichert.
 import { supabase } from "./supabaseClient.js";
+import { ladeAlle } from "./ladeAlle.js";
 
 export const IMPORT_QUELLE_MELA = "mela";
 
-const SEITE = 1000; // Supabase liefert pro Abfrage höchstens 1000 Zeilen
-
-/** Alle Zeilen einer Tabelle laden, seitenweise (sonst fehlen alles ab Zeile 1001). */
-async function ladeAlle(tabelle, spalten) {
-  const alle = [];
-  for (let von = 0; ; von += SEITE) {
-    const { data, error } = await supabase
-      .from(tabelle)
-      .select(spalten)
-      .order("id", { ascending: true })
-      .range(von, von + SEITE - 1);
-    if (error) throw error;
-    alle.push(...(data || []));
-    if (!data || data.length < SEITE) return alle;
-  }
-}
+// Supabase liefert pro Abfrage höchstens 1000 Zeilen → seitenweise laden (ladeAlle.js)
 
 const schluessel = (name) => name.trim().toLowerCase();
 
@@ -237,4 +223,49 @@ export async function importiereMelaRezept(rezept, kontext) {
   if (payload.import_id) kontext.melaIds.add(payload.import_id);
 
   return { hinweise };
+}
+
+/**
+ * Nachträgliche Reparatur eines schon importierten Mela-Rezepts: ersetzt NUR die Zutaten
+ * und/oder Schritte durch die (neu aufgeteilten) aus dem Parser. Alles andere am Rezept
+ * (Titel, Bilder, Notizen, Favorit …) bleibt unverändert.
+ * Benutzt z.B. für Rezepte, bei denen in Mela alle Zutaten in einer Zeile standen.
+ */
+export async function ersetzeZutatenUndSchritte(recipeId, rezept, kontext, { zutaten = false, schritte = false }) {
+  if (zutaten) {
+    const liste = rezept.zutaten.filter((z) => z.name.trim());
+    const { error: delErr } = await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipeId);
+    if (delErr) throw delErr;
+    // Achtung: Beim Löschen räumt die Datenbank Zutaten weg, die in keinem Rezept mehr
+    // vorkommen (Trigger cleanup_orphaned_ingredient). Gemerkte IDs können also veraltet sein
+    // → prüfen, welche noch existieren, und fehlende neu anlegen.
+    const gemerkt = [...new Set(liste.map((z) => kontext.zutaten.get(schluessel(z.name))).filter(Boolean))];
+    if (gemerkt.length > 0) {
+      const { data: noch, error: qErr } = await supabase.from("ingredients").select("id").in("id", gemerkt);
+      if (qErr) throw qErr;
+      const vorhanden = new Set((noch || []).map((r) => r.id));
+      for (const [name, id] of [...kontext.zutaten]) if (gemerkt.includes(id) && !vorhanden.has(id)) kontext.zutaten.delete(name);
+    }
+    await sicherstellen("ingredients", liste.map((z) => z.name), kontext.zutaten);
+    const { error } = await supabase.from("recipe_ingredients").insert(
+      liste.map((z, i) => ({
+        recipe_id: recipeId,
+        ingredient_id: kontext.zutaten.get(schluessel(z.name)),
+        menge: z.menge,
+        einheit: z.einheit,
+        notiz: z.notiz || null,
+        gruppe: z.gruppe,
+        reihenfolge: i + 1,
+      }))
+    );
+    if (error) throw error;
+  }
+  if (schritte) {
+    const { error: delErr } = await supabase.from("recipe_steps").delete().eq("recipe_id", recipeId);
+    if (delErr) throw delErr;
+    const { error } = await supabase
+      .from("recipe_steps")
+      .insert(rezept.schritte.map((s, i) => ({ recipe_id: recipeId, reihenfolge: i + 1, text: s.text, gruppe: s.gruppe })));
+    if (error) throw error;
+  }
 }

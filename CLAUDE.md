@@ -32,7 +32,7 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 
 ## Konventionen im Code
 
-- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.57**).
+- **Versionsnummer:** `src/version.js` bei jedem Update um 0.01 erhöhen (aktuell **0.60**).
   Wird in der Sidebar angezeigt, so sieht der Nutzer, ob Hot Reload den neuen Stand hat.
 - Design-Tokens in `src/styles/tokens.css` entsprechen 1:1 den Figma-Variablen —
   keine Werte erfinden.
@@ -113,6 +113,9 @@ auf jedem Rechner nahtlos weitergehen kann. **Bitte aktuell halten**, wenn sich 
 | 0.55 | „…“-Button sitzt in ALLEN Cards an derselben Stelle (absolut, 16 px von rechts/unten; Footer halten 36 px frei). Menü klappt direkt unter dem Button auf, linke Kante bündig; ragt es aus dem Fenster, klappt es nach links (`useMenuNachLinks`). Gilt auch für „Kategorie zuordnen“ in der Zutaten-Card. Figma: Card-Optionen angepasst; Button-Komponente hat neue Variante **Style=Danger** (feedback/error) |
 | 0.56 | Eigener Lösch-Dialog statt `window.confirm` an allen 10 Stellen (folgt Light/Dark Mode): `bestaetigen({ titel, text })` aus `src/lib/bestaetigen.js` liefert ein Promise (true/false), Anzeige über `ConfirmDialogHost.jsx` (einmal in App.jsx). Fokus auf „Abbrechen“, Escape/Klick daneben = Abbrechen. Neuer Button-Stil `.btn-danger`. Figma: Card-Optionen → Lösch-Dialog Light/Dark |
 | 0.57 | **Handy-Ansicht** (< 768 px, ein `@media`-Block am Ende von `index.css`): Sidebar weg, `MobileNav.jsx` mit Leiste unten (Rezepte · Einkaufen · Sammlungen · Mehr; „Mehr“ öffnet Menü von unten mit allen übrigen Bereichen, Menüpunkte aus `Sidebar.jsx` exportiert). Ränder 16 px; Detailseite: Buttons untereinander volle Breite, Bild 220 px; Formular: Zutat zweizeilig (Menge·Einheit·Zutat·×, darunter Notiz); Kochmodus kleiner. Am Computer unverändert. Figma: Komponente „Mobile Tab Bar“ (Seite Sidebar), Screens – User → Mobil (v0.57); Recipe-Card-Komponente: Bild dehnt sich mit (Constraints) |
+| 0.58 | **Bereiche merken sich ihren Zustand:** App.jsx hält besuchte Bereiche gemountet (nur `hidden`), merkt Scroll-Position pro Bereich; beim Zurückkehren laden Seiten still neu (`useBeiRueckkehr` / `SeiteAktivContext` in `src/lib/seitenAktivierung.js`, `load({ still: true })` ohne „Lädt …“; RecipeDetail behält Portionen/Bild). **Ansicht dauerhaft gemerkt** (localStorage, `useGemerkteAnsicht` in `src/lib/gemerkteAnsicht.js`): Cards/Liste/Tabelle pro Bereich, Einkaufen-Tab und -Sortierung. Nach Ab-/Anmelden frischer Aufbau |
+| 0.59 | **Sortierung** (`SortSelect.jsx`, natives `<select>`, ohne „Sortieren:“-Label; Logik in `src/lib/sortierung.js`): Rezepte = Neueste/Älteste/A–Z/Z–A/Kürzeste Zeit (ohne Zeit ans Ende)/Wenig Aufwand (Zutaten + Schritte; Rezepte ohne Zutaten oder ohne Schritte ans Ende). Kochbücher, Sammlungen, Kategorien, Tags, Zutaten (innerhalb der Gruppen), Hilfsmittel, Zutaten-Kategorien = A–Z/Z–A/Meiste Rezepte/Neueste/Älteste. Pro Bereich dauerhaft gemerkt. **Bugfix:** Zählungen „x Rezepte“ und Zutaten-/Rezeptlisten luden nur 1000 Zeilen → jetzt seitenweise (`src/lib/ladeAlle.js`: `ladeAlle`, `zaehleAlle`; z.B. Salz vorher zu wenig, jetzt 398). Figma: Komponente „Sort Select“ (Seite Select), Screens – User → Sortierung (v0.59) |
+| 0.60 | Mela-Parser teilt **Sammelzeilen** auf: Zutaten in einer Zeile mit Kommas (`teileZutatenzeile`: nur bei ≥ 3 Teilen mit Menge, nicht in Klammern, „weißer, geschälter Spargel“ bleibt zusammen, Zeilen mit „alternativ“ unverändert) und ganze Anleitung in einem Absatz > 250 Zeichen (`teileSchritt`: an Satzenden, Abkürzungen wie ca./z. B./Min. ausgenommen, Inline-Nummern „1. …“). Bestehende Mela-Rezepte repariert (13.11.2026): 5 × Zutaten, 38 × Schritte, Thunfisch-Dip ohne Überschrift-Zutat; danach 614/615 importierte Rezepte = neuer Parser. Helfer `ersetzeZutatenUndSchritte` in `melaImport.js` |
 
 Getroffene Entscheidungen:
 - Einkaufsliste: gleiche Zutat + gleiche Einheit innerhalb eines Rezepts wird zu einer Zeile
@@ -149,6 +152,10 @@ Getroffene Entscheidungen:
 - **Konvention Handy:** Neue Seiten/Komponenten immer auch bei 375 px Breite prüfen (Browser-Pane
   `resize_window` preset mobile). Mobile Regeln gehören in den `@media (max-width: 767px)`-Block
   am Ende von `index.css`. Geprüft am 12.11.2026: alle 11 Bereiche ohne seitliches Überstehen.
+- **Konvention Seiten:** Neue Seiten laden beim Zurückkehren still neu:
+  `async function load({ still = false } = {}) { if (!still) setLoading(true); … }` plus
+  `useBeiRueckkehr(() => load({ still: true }))`. Auswahl, die über Sitzungen gemerkt werden soll
+  (Ansicht, Tabs), mit `useGemerkteAnsicht(schluessel, standard, erlaubteWerte)`.
 - **Konvention:** Für Sicherheitsabfragen immer `await bestaetigen({ titel, text })` benutzen,
   nie `window.confirm` (sieht im Dark Mode falsch aus).
 
@@ -156,9 +163,13 @@ Getroffene Entscheidungen:
   (5 waren schon da), 4½ Min., keine Hinweise/Fehler. Danach 621 Rezepte, 486 mit Bild.
   Noch aufzuräumen (Nutzer): Testrezepte „Mela-Test: …“, „Ohne Titel“, „Testrezept v0.50 …“,
   Tag „Mela-Test-Tag“; „3 MINUTEN- THUNFISCH-DIP …“ (vor der Titel-Korrektur importiert) umbenennen.
-- **Achtung ab 1000 Rezepten:** Supabase liefert pro Abfrage höchstens 1000 Zeilen. Die
-  Rezeptübersicht lädt alle Rezepte in einer Abfrage → ab 1000 Rezepten fehlen welche
-  (Mela-Import lädt bereits seitenweise, siehe `ladeAlle` in `melaImport.js`).
+- **1000-Zeilen-Grenze:** Supabase liefert pro Abfrage höchstens 1000 Zeilen. Seit v0.59 laden
+  Rezeptübersicht, Zutaten, Hilfsmittel und alle Zählungen seitenweise (`src/lib/ladeAlle.js`).
+  Neue Abfragen auf potenziell große Tabellen (recipes, recipe_ingredients, recipe_tags …) immer
+  über `ladeAlle`/`zaehleAlle`.
+- **Datenbank-Falle:** Trigger `cleanup_orphaned_ingredient` löscht eine Zutat aus dem Pool, sobald
+  sie in keinem Rezept mehr vorkommt. Wer Zutatenzeilen löscht und neu anlegt, muss gemerkte
+  Zutaten-IDs danach neu prüfen (siehe `ersetzeZutatenUndSchritte`) — sonst Fremdschlüssel-Fehler.
 - **Rezept-Beschreibung** (`recipes.beschreibung`, Mela `text`) wird gespeichert, aber weder auf
   der Detailseite angezeigt noch im Formular bearbeitbar → Design in Figma nötig.
 

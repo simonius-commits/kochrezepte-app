@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 import Tag from "../components/Tag.jsx";
 import CookMode from "../components/CookMode.jsx";
 import ShoppingListModal from "../components/ShoppingListModal.jsx";
 import { getDomain, toAbsoluteUrl } from "../lib/getDomain.js";
 import { bestaetigen } from "../lib/bestaetigen.js";
+import { SeiteAktivContext } from "../lib/seitenAktivierung.js";
 
 function round2(n) {
   return Math.round(n * 100) / 100;
@@ -54,11 +55,16 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
   const [showShoppingModal, setShowShoppingModal] = useState(false);
   const [error, setError] = useState(null);
 
+  // Zählt hoch, wenn man zu diesem Bereich zurückkehrt → dann still neu laden (seitenAktivierung.js)
+  const aktivierung = useContext(SeiteAktivContext);
+  const geladenFuer = useRef(null);
+
   useEffect(() => {
     if (isDemo) return;
 
     async function load() {
-      setLoading(true);
+      // „Lädt …“ nur beim ersten Laden eines Rezepts, nicht beim stillen Neuladen
+      if (geladenFuer.current !== recipeId) setLoading(true);
       const [
         { data: recipeRow },
         { data: ingredientRows },
@@ -101,15 +107,22 @@ export default function RecipeDetail({ recipeId, demoData, onBack, onEdit, onDel
         ? imageRows
         : recipeRow?.bild_url ? [{ id: "bild_url", url: recipeRow.bild_url }] : [];
       setImages(imgs);
-      setActiveImage(0);
       setTags((tagRows || []).map((t) => t.tags?.name).filter(Boolean));
       setHilfsmittel((toolRows || []).map((t) => t.tools?.name).filter(Boolean));
       setSammlungen((collectionRows || []).map((c) => c.collections?.name).filter(Boolean));
-      setPortionen(recipeRow ? recipeRow.portionen_standard : 4);
+      // Beim stillen Neuladen gewähltes Bild und eingestellte Portionen behalten
+      if (geladenFuer.current !== recipeId) {
+        setActiveImage(0);
+        setPortionen(recipeRow ? recipeRow.portionen_standard : 4);
+      } else {
+        // Falls inzwischen Bilder entfernt wurden: Auswahl im gültigen Bereich halten
+        setActiveImage((i) => Math.min(i, Math.max(0, imgs.length - 1)));
+      }
+      geladenFuer.current = recipeId;
       setLoading(false);
     }
     load();
-  }, [recipeId, isDemo]);
+  }, [recipeId, isDemo, aktivierung]);
 
   const basisPortionen = recipe?.portionen_standard || 1;
   const factor = basisPortionen ? portionen / basisPortionen : 1;

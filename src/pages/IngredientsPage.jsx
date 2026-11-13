@@ -9,6 +9,11 @@ import SimpleTable from "../components/SimpleTable.jsx";
 import CollapsibleGroupHeader from "../components/CollapsibleGroupHeader.jsx";
 import FilteredRecipesPage from "./FilteredRecipesPage.jsx";
 import { bestaetigen } from "../lib/bestaetigen.js";
+import { useBeiRueckkehr } from "../lib/seitenAktivierung.js";
+import { useGemerkteAnsicht } from "../lib/gemerkteAnsicht.js";
+import SortSelect from "../components/SortSelect.jsx";
+import { LISTEN_SORTIERUNGEN, keys, sortiereListe } from "../lib/sortierung.js";
+import { ladeAlle, zaehleAlle } from "../lib/ladeAlle.js";
 
 const OHNE_KATEGORIE = "Ohne Kategorie";
 const EXPANDED_STORAGE_KEY = "kochrezepte-zutaten-aufgeklappte-kategorien";
@@ -29,7 +34,10 @@ export default function IngredientsPage({ isAdmin }) {
   const [search, setSearch] = useState("");
   const [openIngredient, setOpenIngredient] = useState(null);
   const [mergingIngredient, setMergingIngredient] = useState(null);
-  const [view, setView] = useState("cards");
+  // Ansicht (Cards | Liste | Tabelle) wird dauerhaft gemerkt, bis man sie wechselt
+  const [view, setView] = useGemerkteAnsicht("ansicht:zutaten", "cards", ["cards", "list", "table"]);
+  // Sortierung wird dauerhaft gemerkt, bis man sie wechselt
+  const [sort, setSort] = useGemerkteAnsicht("sortierung:zutaten", "az", keys(LISTEN_SORTIERUNGEN));
   // Standardmäßig sind alle Kategorien eingeklappt (leeres Set = nichts aufgeklappt).
   // Einmal aufgeklappte Kategorien bleiben es auch nach einem Neuladen der Seite.
   const [expanded, setExpanded] = useState(loadExpandedFromStorage);
@@ -52,23 +60,18 @@ export default function IngredientsPage({ isAdmin }) {
     });
   }
 
-  async function load() {
-    setLoading(true);
+  // still = beim Zurückkehren neu laden, ohne „Lädt …“ (siehe seitenAktivierung.js)
+  async function load({ still = false } = {}) {
+    if (!still) setLoading(true);
     // Zutaten sind ein geteilter Pool (siehe Datenmodell) — die Liste zeigt daher alle,
     // aber die Rezept-Anzahl bezieht sich (durch Row Level Security) nur auf eigene Rezepte.
-    const [{ data: ingredientRows }, { data: linkRows }, { data: categoryRows }] = await Promise.all([
-      supabase
-        .from("ingredients")
-        .select("id, name, category_id, ingredient_categories(name)")
-        .order("name", { ascending: true }),
-      supabase.from("recipe_ingredients").select("ingredient_id"),
+    // Alle Zeilen laden (seitenweise, Supabase liefert sonst nur 1000 Zeilen — seit dem
+    // Mela-Import gibt es mehrere Tausend Zutaten und Zuordnungen)
+    const [ingredientRows, counts, { data: categoryRows }] = await Promise.all([
+      ladeAlle("ingredients", "id, name, created_at, category_id, ingredient_categories(name)"),
+      zaehleAlle("recipe_ingredients", "ingredient_id", ["id"]),
       supabase.from("ingredient_categories").select("id, name").order("name", { ascending: true }),
     ]);
-
-    const counts = {};
-    (linkRows || []).forEach((r) => {
-      counts[r.ingredient_id] = (counts[r.ingredient_id] || 0) + 1;
-    });
 
     setIngredients(
       (ingredientRows || []).map((i) => ({
@@ -84,6 +87,7 @@ export default function IngredientsPage({ isAdmin }) {
   useEffect(() => {
     load();
   }, []);
+  useBeiRueckkehr(() => load({ still: true }));
 
   async function handleCreate(name, categoryId) {
     await supabase.from("ingredients").insert({ name, category_id: categoryId || null });
@@ -126,8 +130,12 @@ export default function IngredientsPage({ isAdmin }) {
     // Normale Nutzer:innen sehen nur Zutaten, die in mindestens einem eigenen Rezept
     // verwendet werden. Admins sehen weiterhin den kompletten geteilten Pool.
     const visible = isAdmin ? ingredients : ingredients.filter((i) => i.count > 0);
-    return visible.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()));
-  }, [ingredients, search, isAdmin]);
+    // Sortierung gilt innerhalb jeder Kategorie-Gruppe (Gruppierung behält die Reihenfolge)
+    return sortiereListe(
+      visible.filter((i) => i.name.toLowerCase().includes(search.toLowerCase())),
+      sort
+    );
+  }, [ingredients, search, isAdmin, sort]);
 
   // Nach Kategorie gruppieren, "Ohne Kategorie" kommt zuletzt. Gilt für Cards und Liste.
   const groups = useMemo(() => {
@@ -177,7 +185,10 @@ export default function IngredientsPage({ isAdmin }) {
       </div>
 
       <div className="view-switcher-bar">
-        <ViewSwitcher view={view} onChange={setView} />
+        <div className="sort-view-group">
+          <SortSelect value={sort} onChange={setSort} options={LISTEN_SORTIERUNGEN} />
+          <ViewSwitcher view={view} onChange={setView} />
+        </div>
       </div>
 
       {/* Vorschlagsliste für das Ziel-Feld im Zusammenführen-Dialog */}

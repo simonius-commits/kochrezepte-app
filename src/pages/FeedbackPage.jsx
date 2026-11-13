@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient.js";
 import NewFeedbackModal from "../components/NewFeedbackModal.jsx";
+import { useBeiRueckkehr } from "../lib/seitenAktivierung.js";
 
 const CATEGORY_CLASS = {
   "Feature Request": "feedback-badge-feature",
@@ -40,8 +41,9 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
 
-  async function load() {
-    setLoading(true);
+  // still = beim Zurückkehren neu laden, ohne „Lädt …“ (siehe seitenAktivierung.js)
+  async function load({ still = false } = {}) {
+    if (!still) setLoading(true);
     const { data } = await supabase
       .from("feedback_items")
       .select("id, category, message, status, source, sender_email, created_at")
@@ -53,6 +55,7 @@ export default function FeedbackPage() {
   useEffect(() => {
     load();
   }, []);
+  useBeiRueckkehr(() => load({ still: true }));
 
   async function changeStatus(item, newStatus) {
     if (newStatus === item.status) return;
